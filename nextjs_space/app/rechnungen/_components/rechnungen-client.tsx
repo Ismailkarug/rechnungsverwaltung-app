@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { UploadDialog } from "./upload-dialog";
 
 interface Rechnung {
   id: string;
@@ -161,6 +162,22 @@ export function RechnungenClient({ rechnungen, filters }: RechnungenClientProps)
     setEndDatum('');
   };
 
+  const handleDownloadPdf = async (dateipfad: string) => {
+    try {
+      const response = await fetch(`/api/download-invoice?key=${encodeURIComponent(dateipfad)}`);
+      if (!response.ok) throw new Error('Download fehlgeschlagen');
+      
+      const { url } = await response.json();
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.click();
+    } catch (error) {
+      console.error('Download error:', error);
+    }
+  };
+
   const exportToCsv = () => {
     const headers = [
       'Rechnungsnummer',
@@ -221,10 +238,13 @@ export function RechnungenClient({ rechnungen, filters }: RechnungenClientProps)
                 {filteredAndSortedRechnungen.length} von {rechnungen.length} Rechnungen
               </p>
             </div>
-            <Button onClick={exportToCsv} className="flex items-center gap-2">
-              <Download className="h-4 w-4" />
-              CSV Export
-            </Button>
+            <div className="flex gap-3">
+              <UploadDialog />
+              <Button onClick={exportToCsv} className="flex items-center gap-2">
+                <Download className="h-4 w-4" />
+                CSV Export
+              </Button>
+            </div>
           </div>
 
           {/* Filter Section */}
@@ -457,17 +477,11 @@ export function RechnungenClient({ rechnungen, filters }: RechnungenClientProps)
                             <Button
                               variant="ghost"
                               size="sm"
-                              asChild
+                              onClick={() => handleDownloadPdf(rechnung.dateipfad!)}
                               className="hover:bg-blue-50"
+                              title="PDF öffnen"
                             >
-                              <a
-                                href={rechnung.dateipfad}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title="PDF öffnen"
-                              >
-                                <ExternalLink className="h-4 w-4 text-blue-500" />
-                              </a>
+                              <ExternalLink className="h-4 w-4 text-blue-500" />
                             </Button>
                           ) : (
                             <span className="text-gray-400 text-sm">-</span>
