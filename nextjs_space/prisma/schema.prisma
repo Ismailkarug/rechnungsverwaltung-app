@@ -1,0 +1,30 @@
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+    output = "/home/ubuntu/rechnungsverwaltung_app/nextjs_space/node_modules/.prisma/client"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model Rechnung {
+  id                  String    @id @default(cuid())
+  rechnungsnummer     String    @unique
+  datum               DateTime
+  lieferant           String
+  betragNetto         Decimal   @db.Decimal(10,2)
+  mwstSatz            String
+  mwstBetrag          Decimal?  @db.Decimal(10,2)
+  betragBrutto        Decimal   @db.Decimal(10,2)
+  leistungszeitraum   String?
+  dateipfad           String?
+  status              String?
+  verarbeitungsdatum  DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("rechnungen")
+}

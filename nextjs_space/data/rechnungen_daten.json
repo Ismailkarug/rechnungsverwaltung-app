@@ -1,0 +1,80 @@
+[
+  {
+    "Rechnungsnummer": "RE-2025-001",
+    "Datum": "2025-11-05",
+    "Lieferant": "Müller GmbH",
+    "Betrag netto": "1000.00",
+    "MwSt-Satz": "19%",
+    "MwSt-Betrag": "190.00",
+    "Betrag brutto": "1190.00",
+    "Leistungszeitraum": "November 2025",
+    "Dateipfad": "https://drive.google.com/file/d/1-JP5_eDrmVgOQ1Zzw056bP7GVE2gvwBZ/view",
+    "Status": "✅ automatisch verarbeitet",
+    "Verarbeitungsdatum": "2025-11-05 14:52:00"
+  },
+  {
+    "Rechnungsnummer": "20250119",
+    "Datum": "2025-11-05",
+    "Lieferant": "AP Dienstleistungen",
+    "Betrag netto": "500",
+    "MwSt-Satz": "19%",
+    "MwSt-Betrag": "95",
+    "Betrag brutto": "595",
+    "Leistungszeitraum": "10.2025",
+    "Dateipfad": "https://drive.google.com/file/d/1D8O8k_rI_f_aq7KxuKjHn0fdiMID1jTZ/view?usp=drivesdk",
+    "Status": "✅ automatisch verarbeitet",
+    "Verarbeitungsdatum": "2025-11-05 15:53:27"
+  },
+  {
+    "Rechnungsnummer": "RE-2025-001",
+    "Datum": "2025-11-05",
+    "Lieferant": "Test_Lieferant_GmbH",
+    "Betrag netto": "1000",
+    "MwSt-Satz": "19%",
+    "MwSt-Betrag": "November 2025",
+    "Betrag brutto": "2025-11-05_Test_Lieferant_GmbH_RE-2025-001.png",
+    "Leistungszeitraum": "Rechnungen/2025/11_November/2025-11-05_Test_Lieferant_GmbH_RE-2025-001.png",
+    "Dateipfad": "2025-11-05 16:41:30",
+    "Status": "",
+    "Verarbeitungsdatum": ""
+  },
+  {
+    "Rechnungsnummer": "23/000276",
+    "Datum": "2025-10-20",
+    "Lieferant": "Kanzlei_Koeyluece",
+    "Betrag netto": "0",
+    "MwSt-Satz": "1900%",
+    "MwSt-Betrag": "09/2025",
+    "Betrag brutto": "2025-10-20_Kanzlei_Koeyluece_23_000276.pdf",
+    "Leistungszeitraum": "https://drive.google.com/file/d/10ZYwTgCPmfSLxfTPUD1Y8nvigX69LBt8/view",
+    "Dateipfad": "2025-11-05 19:13:07",
+    "Status": "",
+    "Verarbeitungsdatum": ""
+  },
+  {
+    "Rechnungsnummer": "782597",
+    "Datum": "2025-10-22",
+    "Lieferant": "Tandmore",
+    "Betrag netto": "0",
+    "MwSt-Satz": "1900%",
+    "MwSt-Betrag": "10.2025",
+    "Betrag brutto": "2025-10-22_Tandmore_782597.pdf",
+    "Leistungszeitraum": "https://drive.google.com/file/d/17u_Rwv3UxjQTlq7rfFL8CGKP7vA5_fsK/view",
+    "Dateipfad": "2025-11-05 19:13:07",
+    "Status": "",
+    "Verarbeitungsdatum": ""
+  },
+  {
+    "Rechnungsnummer": "20250119",
+    "Datum": "2025-11-05",
+    "Lieferant": "AP_Dienstleistungen",
+    "Betrag netto": "0",
+    "MwSt-Satz": "1900%",
+    "MwSt-Betrag": "",
+    "Betrag brutto": "2025-11-05_AP_Dienstleistungen_20250119.pdf",
+    "Leistungszeitraum": "https://drive.google.com/file/d/11H2p_B5Arbq_tAwmc3bi-6XpLEGC1IK4/view",
+    "Dateipfad": "2025-11-05 19:13:07",
+    "Status": "",
+    "Verarbeitungsdatum": ""
+  }
+]
