@@ -1,0 +1,54 @@
+2025-11-06 20:42:47,608 - INFO - ============================================================
+2025-11-06 20:42:47,608 - INFO - Starting Email Monitor for Invoice Import
+2025-11-06 20:42:47,608 - INFO - ============================================================
+2025-11-06 20:42:47,612 - INFO - Already processed 0 emails
+2025-11-06 20:42:47,849 - INFO - Found 2 potential invoice emails
+2025-11-06 20:42:47,849 - INFO - Processing email: 19a5ae27db476c3c
+2025-11-06 20:42:48,009 - INFO - Found 6 PDF attachment(s)
+2025-11-06 20:42:48,216 - INFO - Downloaded attachment: Ismailkar_436910751.pdf
+2025-11-06 20:42:48,760 - ERROR - Error extracting invoice data: 403 Client Error: Forbidden for url: https://apps.abacus.ai/v1/chat/completions
+2025-11-06 20:42:49,022 - INFO - Downloaded attachment: RE-2024021829.pdf
+2025-11-06 20:42:49,403 - ERROR - Error extracting invoice data: 403 Client Error: Forbidden for url: https://apps.abacus.ai/v1/chat/completions
+2025-11-06 20:42:49,625 - INFO - Downloaded attachment: RE-2024021829.pdf
+2025-11-06 20:42:50,017 - ERROR - Error extracting invoice data: 403 Client Error: Forbidden for url: https://apps.abacus.ai/v1/chat/completions
+2025-11-06 20:42:50,217 - INFO - Downloaded attachment: RE-2024021829.pdf
+2025-11-06 20:42:50,888 - ERROR - Error extracting invoice data: 403 Client Error: Forbidden for url: https://apps.abacus.ai/v1/chat/completions
+2025-11-06 20:42:51,106 - INFO - Downloaded attachment: agb.pdf
+2025-11-06 20:42:51,606 - ERROR - Error extracting invoice data: 403 Client Error: Forbidden for url: https://apps.abacus.ai/v1/chat/completions
+2025-11-06 20:42:51,832 - INFO - Downloaded attachment: rechnung_782597.pdf
+2025-11-06 20:42:52,151 - ERROR - Error extracting invoice data: 403 Client Error: Forbidden for url: https://apps.abacus.ai/v1/chat/completions
+2025-11-06 20:42:52,152 - INFO - Processing email: 19a5948ec9a9213b
+2025-11-06 20:42:52,404 - INFO - Found 1 PDF attachment(s)
+2025-11-06 20:42:52,619 - INFO - Downloaded attachment: ON251000332.pdf
+2025-11-06 20:42:53,021 - ERROR - Error extracting invoice data: 403 Client Error: Forbidden for url: https://apps.abacus.ai/v1/chat/completions
+2025-11-06 20:42:53,022 - INFO - ============================================================
+2025-11-06 20:42:53,022 - INFO - Email Monitor Completed - Processed 0 new invoice(s)
+2025-11-06 20:42:53,022 - INFO - ============================================================
+2025-11-06 20:43:14,968 - INFO - ============================================================
+2025-11-06 20:43:14,968 - INFO - Starting Email Monitor for Invoice Import
+2025-11-06 20:43:14,968 - INFO - ============================================================
+2025-11-06 20:43:14,969 - INFO - Already processed 0 emails
+2025-11-06 20:43:15,129 - INFO - Found 2 potential invoice emails
+2025-11-06 20:43:15,130 - INFO - Processing email: 19a5ae27db476c3c
+2025-11-06 20:43:15,261 - INFO - Found 6 PDF attachment(s)
+2025-11-06 20:43:15,457 - INFO - Downloaded attachment: Ismailkar_436910751.pdf
+2025-11-06 20:43:18,329 - INFO - Extracted invoice data: 436910751
+2025-11-06 20:43:18,476 - INFO - Successfully saved invoice 436910751 to database
+2025-11-06 20:43:18,710 - INFO - Downloaded attachment: RE-2024021829.pdf
+2025-11-06 20:43:22,308 - INFO - Extracted invoice data: RE-2024021829
+2025-11-06 20:43:22,324 - INFO - Successfully saved invoice RE-2024021829 to database
+2025-11-06 20:43:22,566 - INFO - Downloaded attachment: RE-2024021829.pdf
+2025-11-06 20:43:26,329 - INFO - Extracted invoice data: RE-2024021829
+2025-11-06 20:43:26,347 - INFO - Successfully saved invoice RE-2024021829 to database
+2025-11-06 20:43:26,574 - INFO - Downloaded attachment: RE-2024021829.pdf
+2025-11-06 20:43:29,786 - INFO - Extracted invoice data: RE-2024021829
+2025-11-06 20:43:29,801 - INFO - Successfully saved invoice RE-2024021829 to database
+2025-11-06 20:43:30,014 - INFO - Downloaded attachment: agb.pdf
+2025-11-06 20:45:08,593 - INFO - Extracted invoice data: None
+2025-11-06 20:45:08,595 - ERROR - Failed to save invoice to database
+2025-11-06 20:45:08,832 - INFO - Downloaded attachment: rechnung_782597.pdf
+2025-11-06 20:45:12,337 - INFO - Extracted invoice data: 782597
+2025-11-06 20:45:12,356 - INFO - Successfully saved invoice 782597 to database
+2025-11-06 20:45:12,364 - INFO - Processing email: 19a5948ec9a9213b
+2025-11-06 20:45:12,539 - INFO - Found 1 PDF attachment(s)
+2025-11-06 20:45:12,729 - INFO - Downloaded attachment: ON251000332.pdf

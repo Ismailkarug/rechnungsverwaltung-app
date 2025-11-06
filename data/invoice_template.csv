@@ -1,0 +1,3 @@
+rechnungsnummer,datum,lieferant,betragNetto,mwstSatz,mwstBetrag,betragBrutto,leistungszeitraum,status
+RE-2024-001,2024-11-01,Beispiel Lieferant GmbH,100.00,19,19.00,119.00,November 2024,Unbezahlt
+RE-2024-002,2024-11-02,Muster AG,250.50,19,47.60,298.10,Oktober-November 2024,Bezahlt

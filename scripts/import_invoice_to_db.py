@@ -139,6 +139,13 @@ def import_invoice(invoice_data: dict, pdf_filename: str) -> bool:
             except:
                 pass
 
+def save_invoice_to_db(invoice_data: dict, pdf_filename: str) -> bool:
+    """
+    Public function to save invoice to database.
+    Can be imported by other scripts.
+    """
+    return import_invoice(invoice_data, pdf_filename)
+
 if __name__ == "__main__":
     if len(sys.argv) < 3:
         print("Usage: python import_invoice_to_db.py <invoice_json> <pdf_filename>", file=sys.stderr)

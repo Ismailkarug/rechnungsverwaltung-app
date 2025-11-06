@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Sidebar } from "@/components/sidebar";
 import { 
   Search, 
@@ -16,8 +17,11 @@ import {
   Calendar,
   Building2,
   Euro,
-  Download
+  Download,
+  Trash2,
+  Edit
 } from "lucide-react";
+import { toast } from "sonner";
 import { motion } from 'framer-motion';
 import {
   Select,
@@ -27,6 +31,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { UploadDialog } from "./upload-dialog";
+import { AIUploadDialog } from "./ai-upload-dialog";
+import { CSVImportDialog } from "./csv-import-dialog";
 
 interface Rechnung {
   id: string;
@@ -66,6 +72,8 @@ export function RechnungenClient({ rechnungen, filters }: RechnungenClientProps)
   const [endDatum, setEndDatum] = useState('');
   const [sortField, setSortField] = useState<SortField>('datum');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkUpdating, setBulkUpdating] = useState(false);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('de-DE', {
@@ -216,6 +224,87 @@ export function RechnungenClient({ rechnungen, filters }: RechnungenClientProps)
     link.click();
   };
 
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredAndSortedRechnungen.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredAndSortedRechnungen.map(r => r.id));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds(selectedIds.filter(selectedId => selectedId !== id));
+    } else {
+      setSelectedIds([...selectedIds, id]);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) {
+      toast.error('Keine Rechnungen ausgewählt');
+      return;
+    }
+
+    if (!confirm(`${selectedIds.length} Rechnung(en) wirklich löschen?`)) {
+      return;
+    }
+
+    setBulkUpdating(true);
+    try {
+      const response = await fetch('/api/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds })
+      });
+
+      if (!response.ok) {
+        throw new Error('Fehler beim Löschen');
+      }
+
+      const data = await response.json();
+      toast.success(`${data.deletedCount} Rechnung(en) gelöscht`);
+      setSelectedIds([]);
+      window.location.reload();
+    } catch (error) {
+      toast.error('Fehler beim Löschen der Rechnungen');
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
+
+  const handleBulkStatusUpdate = async (newStatus: string) => {
+    if (selectedIds.length === 0) {
+      toast.error('Keine Rechnungen ausgewählt');
+      return;
+    }
+
+    setBulkUpdating(true);
+    try {
+      const response = await fetch('/api/bulk-update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          ids: selectedIds,
+          updates: { status: newStatus }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Fehler beim Aktualisieren');
+      }
+
+      const data = await response.json();
+      toast.success(`${data.updatedCount} Rechnung(en) auf "${newStatus}" gesetzt`);
+      setSelectedIds([]);
+      window.location.reload();
+    } catch (error) {
+      toast.error('Fehler beim Aktualisieren der Rechnungen');
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       <Sidebar />
@@ -236,16 +325,59 @@ export function RechnungenClient({ rechnungen, filters }: RechnungenClientProps)
               </h1>
               <p className="text-gray-600">
                 {filteredAndSortedRechnungen.length} von {rechnungen.length} Rechnungen
+                {selectedIds.length > 0 && (
+                  <span className="ml-2 text-blue-600 font-medium">
+                    ({selectedIds.length} ausgewählt)
+                  </span>
+                )}
               </p>
             </div>
             <div className="flex gap-3">
               <UploadDialog />
+              <AIUploadDialog />
+              <CSVImportDialog />
               <Button onClick={exportToCsv} className="flex items-center gap-2">
                 <Download className="h-4 w-4" />
                 CSV Export
               </Button>
             </div>
           </div>
+
+          {/* Bulk Actions Toolbar */}
+          {selectedIds.length > 0 && (
+            <Card className="bg-blue-50 border-blue-200 mb-6">
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <span className="font-medium text-blue-900">
+                      {selectedIds.length} Rechnung(en) ausgewählt
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Select onValueChange={handleBulkStatusUpdate} disabled={bulkUpdating}>
+                      <SelectTrigger className="w-48 bg-white">
+                        <SelectValue placeholder="Status ändern..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Unbezahlt">Auf Unbezahlt setzen</SelectItem>
+                        <SelectItem value="Bezahlt">Auf Bezahlt setzen</SelectItem>
+                        <SelectItem value="Storniert">Auf Storniert setzen</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button 
+                      variant="destructive" 
+                      onClick={handleBulkDelete}
+                      disabled={bulkUpdating}
+                      className="flex items-center gap-2"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Löschen
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Filter Section */}
           <Card className="bg-white/80 backdrop-blur-sm shadow-lg border-0 mb-6">
@@ -361,6 +493,12 @@ export function RechnungenClient({ rechnungen, filters }: RechnungenClientProps)
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
+                      <th className="px-6 py-3 w-12">
+                        <Checkbox
+                          checked={selectedIds.length === filteredAndSortedRechnungen.length && filteredAndSortedRechnungen.length > 0}
+                          onCheckedChange={toggleSelectAll}
+                        />
+                      </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         <Button 
                           variant="ghost" 
@@ -428,6 +566,12 @@ export function RechnungenClient({ rechnungen, filters }: RechnungenClientProps)
                         transition={{ duration: 0.3, delay: index * 0.05 }}
                         className="hover:bg-gray-50 transition-colors"
                       >
+                        <td className="px-6 py-4">
+                          <Checkbox
+                            checked={selectedIds.includes(rechnung.id)}
+                            onCheckedChange={() => toggleSelectOne(rechnung.id)}
+                          />
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="font-medium text-gray-900">
                             {rechnung.rechnungsnummer}
