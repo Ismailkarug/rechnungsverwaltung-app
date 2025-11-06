@@ -57,8 +57,8 @@ type SortOrder = 'asc' | 'desc';
 
 export function RechnungenClient({ rechnungen, filters }: RechnungenClientProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedLieferant, setSelectedLieferant] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedLieferant, setSelectedLieferant] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
   const [minBetrag, setMinBetrag] = useState('');
   const [maxBetrag, setMaxBetrag] = useState('');
   const [startDatum, setStartDatum] = useState('');
@@ -92,10 +92,10 @@ export function RechnungenClient({ rechnungen, filters }: RechnungenClientProps)
       );
 
       // Lieferantenfilter
-      const lieferantMatch = !selectedLieferant || rechnung.lieferant === selectedLieferant;
+      const lieferantMatch = !selectedLieferant || selectedLieferant === 'all' || rechnung.lieferant === selectedLieferant;
 
       // Statusfilter
-      const statusMatch = !selectedStatus || rechnung.status === selectedStatus;
+      const statusMatch = !selectedStatus || selectedStatus === 'all' || rechnung.status === selectedStatus;
 
       // Betragsfilter
       const minBetragMatch = !minBetrag || rechnung.betragBrutto >= parseFloat(minBetrag);
@@ -153,8 +153,8 @@ export function RechnungenClient({ rechnungen, filters }: RechnungenClientProps)
 
   const clearFilters = () => {
     setSearchTerm('');
-    setSelectedLieferant('');
-    setSelectedStatus('');
+    setSelectedLieferant('all');
+    setSelectedStatus('all');
     setMinBetrag('');
     setMaxBetrag('');
     setStartDatum('');
@@ -254,7 +254,7 @@ export function RechnungenClient({ rechnungen, filters }: RechnungenClientProps)
                     <SelectValue placeholder="Alle Lieferanten" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Alle Lieferanten</SelectItem>
+                    <SelectItem value="all">Alle Lieferanten</SelectItem>
                     {filters.lieferanten.map((lieferant) => (
                       <SelectItem key={lieferant} value={lieferant}>
                         {lieferant}
@@ -269,7 +269,7 @@ export function RechnungenClient({ rechnungen, filters }: RechnungenClientProps)
                     <SelectValue placeholder="Alle Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Alle Status</SelectItem>
+                    <SelectItem value="all">Alle Status</SelectItem>
                     {filters.statusValues.map((status) => (
                       <SelectItem key={status} value={status}>
                         {status}

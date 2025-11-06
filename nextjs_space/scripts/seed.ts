@@ -20,9 +20,18 @@ interface RechnungData {
 }
 
 function cleanNumericValue(value: string): number {
+  if (!value) return 0;
+  
   // Bereinige numerische Werte - entferne ungültige Zeichen
   const cleanValue = value?.toString().replace(/[^\d.,]/g, '').replace(',', '.');
   const num = parseFloat(cleanValue);
+  
+  // Wenn der Wert zu groß ist (> 1.000.000), ist wahrscheinlich etwas falsch
+  if (!isNaN(num) && num > 1000000) {
+    console.log(`    ⚠️  Verdächtiger Betrag erkannt: ${num} - setze auf 0`);
+    return 0;
+  }
+  
   return isNaN(num) ? 0 : num;
 }
 

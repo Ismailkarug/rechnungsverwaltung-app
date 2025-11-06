@@ -28,8 +28,8 @@ import { useToast } from "@/hooks/use-toast";
 export function ExportClient() {
   const [isExporting, setIsExporting] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState('csv');
-  const [selectedLieferant, setSelectedLieferant] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedLieferant, setSelectedLieferant] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
   const [startDatum, setStartDatum] = useState('');
   const [endDatum, setEndDatum] = useState('');
   const { toast } = useToast();
@@ -43,8 +43,8 @@ export function ExportClient() {
       
       // Create download
       const params = new URLSearchParams();
-      if (selectedLieferant) params.append('lieferant', selectedLieferant);
-      if (selectedStatus) params.append('status', selectedStatus);
+      if (selectedLieferant && selectedLieferant !== 'all') params.append('lieferant', selectedLieferant);
+      if (selectedStatus && selectedStatus !== 'all') params.append('status', selectedStatus);
       if (startDatum) params.append('startDatum', startDatum);
       if (endDatum) params.append('endDatum', endDatum);
       params.append('format', selectedFormat);
@@ -270,7 +270,7 @@ export function ExportClient() {
                         <SelectValue placeholder="Alle Lieferanten" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Alle Lieferanten</SelectItem>
+                        <SelectItem value="all">Alle Lieferanten</SelectItem>
                         <SelectItem value="Müller GmbH">Müller GmbH</SelectItem>
                         <SelectItem value="AP Dienstleistungen">AP Dienstleistungen</SelectItem>
                       </SelectContent>
@@ -285,7 +285,7 @@ export function ExportClient() {
                         <SelectValue placeholder="Alle Status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Alle Status</SelectItem>
+                        <SelectItem value="all">Alle Status</SelectItem>
                         <SelectItem value="✅ automatisch verarbeitet">✅ automatisch verarbeitet</SelectItem>
                         <SelectItem value="⏳ in Bearbeitung">⏳ in Bearbeitung</SelectItem>
                       </SelectContent>
