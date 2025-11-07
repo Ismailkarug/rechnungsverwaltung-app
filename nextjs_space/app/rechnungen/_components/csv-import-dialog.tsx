@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FileSpreadsheet, Download, Loader2, CheckCircle, XCircle } from "lucide-react";
+import { FileSpreadsheet, Download, Loader2, CheckCircle, XCircle, FileText, Archive } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -28,11 +28,12 @@ export function CSVImportDialog({ onImportSuccess }: { onImportSuccess?: () => v
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.name.endsWith('.csv')) {
+      const fileName = file.name.toLowerCase();
+      if (fileName.endsWith('.csv') || fileName.endsWith('.pdf') || fileName.endsWith('.zip')) {
         setSelectedFile(file);
         setImportResult(null);
       } else {
-        toast.error('Bitte wählen Sie eine CSV-Datei aus');
+        toast.error('Bitte wählen Sie eine CSV-, PDF- oder ZIP-Datei aus');
       }
     }
   };
@@ -58,7 +59,7 @@ RE-2024-003,2024-02-01,Telekom,75.50,19,14.35,89.85,02/2024,Unbezahlt`;
 
   const handleImport = async () => {
     if (!selectedFile) {
-      toast.error('Bitte wählen Sie eine CSV-Datei aus');
+      toast.error('Bitte wählen Sie eine Datei aus');
       return;
     }
 
@@ -68,7 +69,7 @@ RE-2024-003,2024-02-01,Telekom,75.50,19,14.35,89.85,02/2024,Unbezahlt`;
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const response = await fetch('/api/import-csv', {
+      const response = await fetch('/api/unified-import', {
         method: 'POST',
         body: formData
       });
@@ -89,7 +90,7 @@ RE-2024-003,2024-02-01,Telekom,75.50,19,14.35,89.85,02/2024,Unbezahlt`;
 
     } catch (error: any) {
       console.error('Import error:', error);
-      toast.error(error.message || 'Fehler beim Importieren der CSV-Datei');
+      toast.error(error.message || 'Fehler beim Importieren der Datei');
     } finally {
       setImporting(false);
     }
@@ -119,9 +120,9 @@ RE-2024-003,2024-02-01,Telekom,75.50,19,14.35,89.85,02/2024,Unbezahlt`;
       </DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>CSV Rechnungen importieren</DialogTitle>
+          <DialogTitle>Rechnungen importieren</DialogTitle>
           <DialogDescription>
-            Importieren Sie mehrere Rechnungen gleichzeitig aus einer CSV-Datei.
+            Importieren Sie Rechnungen aus CSV, PDF oder ZIP-Dateien. PDFs werden automatisch mit KI ausgelesen.
           </DialogDescription>
         </DialogHeader>
         
@@ -129,7 +130,7 @@ RE-2024-003,2024-02-01,Telekom,75.50,19,14.35,89.85,02/2024,Unbezahlt`;
           <Alert>
             <Download className="h-4 w-4" />
             <AlertDescription className="flex items-center justify-between">
-              <span>Benötigen Sie eine Vorlage?</span>
+              <span>Benötigen Sie eine CSV-Vorlage?</span>
               <Button
                 variant="link"
                 size="sm"
@@ -142,27 +143,47 @@ RE-2024-003,2024-02-01,Telekom,75.50,19,14.35,89.85,02/2024,Unbezahlt`;
           </Alert>
 
           <div className="space-y-2">
-            <Label htmlFor="csv-file">CSV-Datei auswählen</Label>
+            <Label htmlFor="csv-file">Datei auswählen</Label>
             <Input
               id="csv-file"
               type="file"
-              accept=".csv"
+              accept=".csv,.pdf,.zip"
               onChange={handleFileChange}
             />
             {selectedFile && (
               <p className="text-sm text-muted-foreground flex items-center gap-2">
-                <FileSpreadsheet className="h-4 w-4" />
+                {selectedFile.name.toLowerCase().endsWith('.csv') && <FileSpreadsheet className="h-4 w-4" />}
+                {selectedFile.name.toLowerCase().endsWith('.pdf') && <FileText className="h-4 w-4" />}
+                {selectedFile.name.toLowerCase().endsWith('.zip') && <Archive className="h-4 w-4" />}
                 {selectedFile.name}
               </p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label>Erforderliche Spalten:</Label>
-            <div className="text-sm text-muted-foreground space-y-1 bg-muted p-3 rounded-md">
-              <p><strong>Pflichtfelder:</strong> rechnungsnummer, datum, lieferant, betragNetto, betragBrutto</p>
-              <p><strong>Optional:</strong> mwstSatz, mwstBetrag, leistungszeitraum, status</p>
-              <p className="text-xs mt-2">Datumsformat: YYYY-MM-DD (z.B. 2024-01-15)</p>
+            <Label>Unterstützte Formate:</Label>
+            <div className="text-sm text-muted-foreground space-y-2 bg-muted p-3 rounded-md">
+              <div className="flex items-start gap-2">
+                <FileSpreadsheet className="h-4 w-4 mt-0.5" />
+                <div>
+                  <p className="font-medium">CSV-Dateien:</p>
+                  <p className="text-xs"><strong>Pflichtfelder:</strong> rechnungsnummer, datum, lieferant, betragNetto, betragBrutto</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <FileText className="h-4 w-4 mt-0.5" />
+                <div>
+                  <p className="font-medium">PDF-Dateien:</p>
+                  <p className="text-xs">Werden automatisch mit KI ausgelesen und gespeichert</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <Archive className="h-4 w-4 mt-0.5" />
+                <div>
+                  <p className="font-medium">ZIP-Dateien:</p>
+                  <p className="text-xs">Enthaltene PDF- und CSV-Dateien werden automatisch verarbeitet</p>
+                </div>
+              </div>
             </div>
           </div>
 

@@ -68,14 +68,25 @@ export async function POST(request: NextRequest) {
   "rechnungsnummer": "Rechnungsnummer (String)",
   "datum": "Rechnungsdatum im Format YYYY-MM-DD",
   "lieferant": "Name des Lieferanten/Ausstellers",
-  "betragNetto": "Nettobetrag als Zahl (nur Ziffern, kein Währungssymbol)",
-  "mwstSatz": "MwSt-Satz in Prozent (z.B. '19' oder '7')",
-  "mwstBetrag": "MwSt-Betrag als Zahl",
-  "betragBrutto": "Bruttobetrag als Zahl",
+  "betragNetto": "Nettobetrag als Dezimalzahl mit Punkt als Dezimaltrennzeichen (z.B. 157.83)",
+  "mwstSatz": "MwSt-Satz in Prozent (z.B. '19' oder '7' oder '0')",
+  "mwstBetrag": "MwSt-Betrag als Dezimalzahl mit Punkt als Dezimaltrennzeichen (z.B. 29.99)",
+  "betragBrutto": "Bruttobetrag/Gesamtbetrag als Dezimalzahl mit Punkt als Dezimaltrennzeichen (z.B. 187.82)",
   "leistungszeitraum": "Leistungszeitraum falls vorhanden, sonst null"
 }
 
-Falls eine Information nicht vorhanden ist, verwende null. Alle Beträge ohne Währungssymbole und Punkte als Tausendertrennzeichen. Antworte nur mit dem JSON-Objekt, ohne Code-Blöcke oder Markdown.`
+WICHTIG für Beträge:
+- Verwende IMMER Punkt (.) als Dezimaltrennzeichen, NIEMALS Komma
+- Entferne alle Tausendertrennzeichen (Punkte, Kommas, Leerzeichen)
+- Beispiele: 
+  - €157.83 → 157.83
+  - 1.234,56 € → 1234.56
+  - 15.000,00 → 15000.00
+  - €1,234.56 → 1234.56
+- Gib Beträge immer als reine Dezimalzahl ohne Währungssymbol an
+- Bei 0% MwSt: mwstSatz="0", mwstBetrag=0
+
+Falls eine Information nicht vorhanden ist, verwende null. Antworte nur mit dem JSON-Objekt, ohne Code-Blöcke oder Markdown.`
               }
             ]
           }
