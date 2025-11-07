@@ -95,12 +95,79 @@ export function AIUploadDialog({ onUploadSuccess }: { onUploadSuccess?: () => vo
       setExtractedInvoices(result.results);
       
       const successCount = result.results.filter((r: ExtractedInvoice) => r.success).length;
-      toast.success(`${successCount} von ${result.results.length} Rechnungen erfolgreich extrahiert!`);
+      
+      if (successCount > 0) {
+        // Automatisch speichern ohne Benutzerinteraktion
+        await autoSave(result.results);
+      } else {
+        toast.error('Keine Rechnungen konnten extrahiert werden');
+        setExtracting(false);
+        setUploading(false);
+      }
 
     } catch (error) {
       console.error('Extract error:', error);
       toast.error('Fehler beim Extrahieren der Rechnungsdaten');
+      setExtracting(false);
+      setUploading(false);
+    }
+  };
+
+  const autoSave = async (results: ExtractedInvoice[]) => {
+    const invoicesToSave = results
+      .filter(inv => inv.success && inv.extractedData)
+      .map(inv => ({
+        ...inv.extractedData!,
+        cloudStoragePath: inv.cloudStoragePath
+      }));
+
+    if (invoicesToSave.length === 0) {
+      toast.error('Keine Rechnungen zum Speichern vorhanden');
+      setExtracting(false);
+      setUploading(false);
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const response = await fetch('/api/save-invoice', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ invoices: invoicesToSave })
+      });
+
+      if (!response.ok) {
+        throw new Error('Speichern fehlgeschlagen');
+      }
+
+      const result = await response.json();
+      
+      toast.success(`${result.savedInvoices.length} Rechnung(en) erfolgreich hochgeladen und gespeichert!`);
+      
+      if (result.errors.length > 0) {
+        toast.warning(`${result.errors.length} Rechnung(en) konnten nicht gespeichert werden (möglicherweise Duplikate)`);
+      }
+
+      setOpen(false);
+      
+      // Reset
+      setSelectedFiles([]);
+      setExtractedInvoices([]);
+
+      if (onUploadSuccess) {
+        onUploadSuccess();
+      } else {
+        window.location.reload();
+      }
+
+    } catch (error) {
+      console.error('Save error:', error);
+      toast.error('Fehler beim Speichern der Rechnungen');
     } finally {
+      setSaving(false);
       setExtracting(false);
       setUploading(false);
     }
@@ -179,15 +246,15 @@ export function AIUploadDialog({ onUploadSuccess }: { onUploadSuccess?: () => vo
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button className="gap-2">
-          <Sparkles className="h-4 w-4" />
-          KI-Upload
+          <Upload className="h-4 w-4" />
+          Rechnung hochladen
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>KI-gestützte Rechnungserkennung</DialogTitle>
+          <DialogTitle>Neue Rechnung hochladen</DialogTitle>
           <DialogDescription>
-            Laden Sie eine oder mehrere PDF-Rechnungen hoch. Unsere KI extrahiert automatisch alle relevanten Daten.
+            Laden Sie eine oder mehrere PDF-Rechnungen hoch. Die App erkennt automatisch alle Daten aus der Rechnung - keine manuelle Eingabe erforderlich!
           </DialogDescription>
         </DialogHeader>
         
@@ -227,15 +294,15 @@ export function AIUploadDialog({ onUploadSuccess }: { onUploadSuccess?: () => vo
                 disabled={uploading || selectedFiles.length === 0}
                 className="w-full"
               >
-                {extracting ? (
+                {uploading ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Extrahiere Daten...
+                    {extracting ? 'Lese Rechnungsdaten...' : 'Speichere...'}
                   </>
                 ) : (
                   <>
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Mit KI extrahieren
+                    <Upload className="h-4 w-4 mr-2" />
+                    Jetzt hochladen
                   </>
                 )}
               </Button>

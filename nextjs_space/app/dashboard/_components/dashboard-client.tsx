@@ -18,6 +18,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cel
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 interface KPIData {
   totalRechnungen: number;
@@ -142,6 +143,31 @@ export function DashboardClient({ kpiData, chartData, letzteRechnungen }: Dashbo
       month: '2-digit',
       year: 'numeric'
     });
+  };
+
+  const handleDownloadPdf = async (dateipfad: string) => {
+    try {
+      const response = await fetch(`/api/download-invoice?key=${encodeURIComponent(dateipfad)}`);
+      
+      if (!response.ok) {
+        throw new Error('Download fehlgeschlagen');
+      }
+
+      const data = await response.json();
+      
+      // Öffne die signierte URL in neuem Tab
+      const link = document.createElement('a');
+      link.href = data.url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Fehler beim Öffnen der Rechnung');
+    }
   };
 
   return (
@@ -477,16 +503,10 @@ export function DashboardClient({ kpiData, chartData, letzteRechnungen }: Dashbo
                             <Button 
                               variant="ghost" 
                               size="sm"
-                              asChild
+                              onClick={() => handleDownloadPdf(rechnung.dateipfad!)}
+                              className="flex items-center gap-1"
                             >
-                              <a 
-                                href={rechnung.dateipfad} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-1"
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                              </a>
+                              <ExternalLink className="h-4 w-4" />
                             </Button>
                           )}
                         </div>

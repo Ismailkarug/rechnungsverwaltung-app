@@ -30,7 +30,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { UploadDialog } from "./upload-dialog";
 import { AIUploadDialog } from "./ai-upload-dialog";
 import { CSVImportDialog } from "./csv-import-dialog";
 
@@ -333,7 +332,6 @@ export function RechnungenClient({ rechnungen, filters }: RechnungenClientProps)
               </p>
             </div>
             <div className="flex gap-3">
-              <UploadDialog />
               <AIUploadDialog />
               <CSVImportDialog />
               <Button onClick={exportToCsv} className="flex items-center gap-2">
