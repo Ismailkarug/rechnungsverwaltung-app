@@ -575,7 +575,7 @@ export function RechnungenClient({ rechnungen, filters }: RechnungenClientProps)
                             {rechnung.rechnungsnummer}
                           </div>
                           {rechnung.leistungszeitraum && (
-                            <div className="text-sm text-gray-500">
+                            <div className="text-sm text-gray-600">
                               {rechnung.leistungszeitraum}
                             </div>
                           )}
@@ -597,7 +597,7 @@ export function RechnungenClient({ rechnungen, filters }: RechnungenClientProps)
                         <td className="px-6 py-4 whitespace-nowrap text-center">
                           <div className="text-sm text-gray-900">{rechnung.mwstSatz}</div>
                           {rechnung.mwstBetrag && (
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-700">
                               {formatCurrency(rechnung.mwstBetrag)}
                             </div>
                           )}

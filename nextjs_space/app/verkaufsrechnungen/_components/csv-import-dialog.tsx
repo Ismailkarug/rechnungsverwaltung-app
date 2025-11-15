@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FileSpreadsheet, Download, Loader2, CheckCircle, XCircle, FileText, Archive } from "lucide-react";
+import { FileSpreadsheet, Download, Loader2, CheckCircle, XCircle, FileText, Archive, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -114,9 +114,9 @@ RE-2024-003,2024-02-01,Telekom,75.50,19,14.35,89.85,02/2024,Unbezahlt`;
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2">
-          <FileSpreadsheet className="h-4 w-4" />
-          CSV Import
+        <Button className="gap-2">
+          <Upload className="h-4 w-4" />
+          Rechnungen hochladen
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
