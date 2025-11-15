@@ -104,7 +104,7 @@ Falls eine Information nicht vorhanden ist, verwende null. Antworte nur mit dem 
   }
 }
 
-async function processCSV(fileContent: string) {
+async function processCSV(fileContent: string, typ: string = 'Eingang') {
   const records = parse(fileContent, {
     columns: true,
     skip_empty_lines: true,
@@ -158,7 +158,8 @@ async function processCSV(fileContent: string) {
           leistungszeitraum: record.leistungszeitraum || null,
           dateipfad: null,
           status: record.status || 'Unbezahlt',
-          verarbeitungsdatum: new Date()
+          verarbeitungsdatum: new Date(),
+          typ: typ
         }
       });
 
@@ -186,7 +187,7 @@ async function processCSV(fileContent: string) {
   return { savedInvoices, errors };
 }
 
-async function processPDF(file: Buffer, fileName: string) {
+async function processPDF(file: Buffer, fileName: string, typ: string = 'Eingang') {
   const extractionResult = await extractInvoiceWithAI(file, fileName);
   
   if (!extractionResult.success) {
@@ -225,7 +226,8 @@ async function processPDF(file: Buffer, fileName: string) {
         leistungszeitraum: data.leistungszeitraum,
         dateipfad: extractionResult.cloudStoragePath,
         status: data.status,
-        verarbeitungsdatum: new Date()
+        verarbeitungsdatum: new Date(),
+        typ: typ
       }
     });
 
@@ -253,6 +255,7 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
+    const typ = (formData.get('typ') as string) || 'Eingang'; // Default to 'Eingang' if not specified
     
     if (!file) {
       return NextResponse.json(
@@ -268,14 +271,14 @@ export async function POST(request: NextRequest) {
     // Handle CSV files
     if (fileName.endsWith('.csv')) {
       const fileContent = await file.text();
-      const result = await processCSV(fileContent);
+      const result = await processCSV(fileContent, typ);
       allSavedInvoices = result.savedInvoices;
       allErrors = result.errors;
     }
     // Handle PDF files
     else if (fileName.endsWith('.pdf')) {
       const buffer = Buffer.from(await file.arrayBuffer());
-      const result = await processPDF(buffer, file.name);
+      const result = await processPDF(buffer, file.name, typ);
       allSavedInvoices = result.savedInvoices;
       allErrors = result.errors;
     }
@@ -293,14 +296,14 @@ export async function POST(request: NextRequest) {
         // Process PDFs in ZIP
         if (entryName.endsWith('.pdf')) {
           const pdfBuffer = entry.getData();
-          const result = await processPDF(pdfBuffer, entry.name);
+          const result = await processPDF(pdfBuffer, entry.name, typ);
           allSavedInvoices.push(...result.savedInvoices);
           allErrors.push(...result.errors);
         }
         // Process CSVs in ZIP
         else if (entryName.endsWith('.csv')) {
           const csvContent = entry.getData().toString('utf-8');
-          const result = await processCSV(csvContent);
+          const result = await processCSV(csvContent, typ);
           allSavedInvoices.push(...result.savedInvoices);
           allErrors.push(...result.errors);
         }

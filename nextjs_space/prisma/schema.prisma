@@ -10,21 +10,45 @@ datasource db {
 }
 
 model Rechnung {
-  id                  String    @id @default(cuid())
-  rechnungsnummer     String    @unique
+  id                  String       @id @default(cuid())
+  rechnungsnummer     String       @unique
   datum               DateTime
   lieferant           String
-  betragNetto         Decimal   @db.Decimal(10,2)
+  betragNetto         Decimal      @db.Decimal(10, 2)
   mwstSatz            String
-  mwstBetrag          Decimal?  @db.Decimal(10,2)
-  betragBrutto        Decimal   @db.Decimal(10,2)
+  mwstBetrag          Decimal?     @db.Decimal(10, 2)
+  betragBrutto        Decimal      @db.Decimal(10, 2)
   leistungszeitraum   String?
   dateipfad           String?
   status              String?
   verarbeitungsdatum  DateTime?
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  typ                 String       @default("Eingang") // "Eingang" (Ausgaben) oder "Ausgang" (Einnahmen)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  extractedInvoiceNum String?
+  lastValidated       DateTime?
+  validationErrors    String?
+  validationStatus    String?      @default("pending")
+  audit_logs          audit_logs[]
 
   @@map("rechnungen")
+}
+
+model audit_logs {
+  id           String   @id
+  rechnungId   String
+  action       String
+  userId       String?
+  userName     String?
+  fieldChanged String?
+  oldValue     String?
+  newValue     String?
+  metadata     String?
+  ipAddress    String?
+  userAgent    String?
+  timestamp    DateTime @default(now())
+  rechnungen   Rechnung @relation(fields: [rechnungId], references: [id], onDelete: Cascade)
+
+  @@index([rechnungId])
+  @@index([timestamp])
 }

@@ -1,13 +1,13 @@
 
 import { prisma } from '@/lib/db';
-import { RechnungenClient } from './_components/rechnungen-client';
+import { VerkaufsrechnungenClient } from './_components/verkaufsrechnungen-client';
 
 export const dynamic = "force-dynamic";
 
-async function getAllRechnungen() {
+async function getVerkaufsrechnungen() {
   const rechnungen = await prisma.rechnung.findMany({
     where: {
-      typ: 'Eingang'
+      typ: 'Ausgang'
     },
     orderBy: {
       datum: 'desc'
@@ -20,38 +20,39 @@ async function getAllRechnungen() {
     betragBrutto: Number(r.betragBrutto),
     mwstBetrag: Number(r.mwstBetrag) || null,
     datum: r.datum.toISOString(),
-    verarbeitungsdatum: r.verarbeitungsdatum?.toISOString() || null
+    verarbeitungsdatum: r.verarbeitungsdatum?.toISOString() || null,
+    lastValidated: r.lastValidated?.toISOString() || null
   }));
 }
 
 async function getFilters() {
-  const lieferanten = await prisma.rechnung.findMany({
-    where: { typ: 'Eingang' },
+  const kunden = await prisma.rechnung.findMany({
+    where: { typ: 'Ausgang' },
     select: { lieferant: true },
     distinct: ['lieferant'],
     orderBy: { lieferant: 'asc' }
   });
 
   const statusValues = await prisma.rechnung.findMany({
-    where: { typ: 'Eingang', status: { not: null } },
+    where: { typ: 'Ausgang', status: { not: null } },
     select: { status: true },
     distinct: ['status']
   });
 
   return {
-    lieferanten: lieferanten.map(l => l.lieferant),
+    kunden: kunden.map(k => k.lieferant),
     statusValues: statusValues.map(s => s.status).filter(Boolean) as string[]
   };
 }
 
-export default async function RechnungenPage() {
+export default async function VerkaufsrechnungenPage() {
   const [rechnungen, filters] = await Promise.all([
-    getAllRechnungen(),
+    getVerkaufsrechnungen(),
     getFilters()
   ]);
 
   return (
-    <RechnungenClient 
+    <VerkaufsrechnungenClient 
       rechnungen={rechnungen}
       filters={filters}
     />

@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { 
   BarChart3, 
   FileText, 
@@ -17,14 +18,24 @@ const navigation = [
   {
     name: "Dashboard",
     href: "/dashboard",
-    icon: BarChart3,
+    icon: Home,
     description: "Übersicht & Kennzahlen"
   },
   {
     name: "Rechnungen",
     href: "/rechnungen", 
     icon: FileText,
-    description: "Alle Rechnungen verwalten"
+    description: "Eingangsrechnungen (Ausgaben)",
+    badge: "Ausgaben",
+    badgeColor: "red"
+  },
+  {
+    name: "Verkaufsrechnungen",
+    href: "/verkaufsrechnungen", 
+    icon: Receipt,
+    description: "Ausgangsrechnungen (Einnahmen)",
+    badge: "Einnahmen",
+    badgeColor: "green"
   },
   {
     name: "Statistiken",
@@ -84,7 +95,21 @@ export function Sidebar() {
                     )} 
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium">{item.name}</div>
+                    <div className="font-medium flex items-center gap-2">
+                      {item.name}
+                      {'badge' in item && (
+                        <Badge 
+                          variant="outline" 
+                          className={cn(
+                            "text-[10px] px-1.5 py-0",
+                            item.badgeColor === "red" && "bg-red-50 text-red-700 border-red-200",
+                            item.badgeColor === "green" && "bg-green-50 text-green-700 border-green-200"
+                          )}
+                        >
+                          {item.badge}
+                        </Badge>
+                      )}
+                    </div>
                     <div className={cn(
                       "text-xs",
                       isActive ? "text-blue-600" : "text-gray-500"
