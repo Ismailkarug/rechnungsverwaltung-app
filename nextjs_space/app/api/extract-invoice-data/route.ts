@@ -92,6 +92,7 @@ Falls eine Information nicht vorhanden ist, verwende null. Antworte nur mit dem 
           }
         ];
 
+        console.log(`[AI Extract] Processing: ${file.name}`);
         const llmResponse = await fetch('https://apps.abacus.ai/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -107,11 +108,20 @@ Falls eine Information nicht vorhanden ist, verwende null. Antworte nur mit dem 
         });
 
         if (!llmResponse.ok) {
-          throw new Error('LLM API Fehler');
+          const errorText = await llmResponse.text();
+          console.error(`[AI Extract] LLM API error for ${file.name}:`, llmResponse.status, errorText);
+          throw new Error(`LLM API Fehler: ${llmResponse.status}`);
         }
 
         const llmData = await llmResponse.json();
+        console.log(`[AI Extract] LLM response for ${file.name}:`, JSON.stringify(llmData, null, 2));
+        
+        if (!llmData.choices || !llmData.choices[0] || !llmData.choices[0].message) {
+          throw new Error('Ungültige LLM-Antwort');
+        }
+        
         const extractedData = JSON.parse(llmData.choices[0].message.content);
+        console.log(`[AI Extract] Extracted data for ${file.name}:`, extractedData);
 
         results.push({
           fileName: file.name,
@@ -130,12 +140,12 @@ Falls eine Information nicht vorhanden ist, verwende null. Antworte nur mit dem 
           }
         });
 
-      } catch (error) {
+      } catch (error: any) {
         console.error(`Error processing ${file.name}:`, error);
         results.push({
           fileName: file.name,
           success: false,
-          error: 'Fehler beim Verarbeiten der Datei'
+          error: error.message || 'Fehler beim Verarbeiten der Datei'
         });
       }
     }

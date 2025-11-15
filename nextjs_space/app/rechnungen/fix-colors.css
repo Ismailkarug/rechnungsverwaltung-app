@@ -1,0 +1,15 @@
+/* Force text colors for table cells */
+table tbody tr td {
+  color: #111827 !important;
+}
+
+table tbody tr td span,
+table tbody tr td div {
+  color: inherit !important;
+}
+
+/* Ensure badges have good contrast */
+.badge-secondary {
+  background-color: #f3f4f6 !important;
+  color: #111827 !important;
+}
