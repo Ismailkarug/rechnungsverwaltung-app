@@ -1,15 +1,25 @@
-/* Force text colors for table cells */
-table tbody tr td {
+/* Force text colors for all table content */
+table tbody tr td,
+table tbody tr td *:not(.lucide) {
   color: #111827 !important;
 }
 
+/* Ensure proper inheritance */
 table tbody tr td span,
-table tbody tr td div {
-  color: inherit !important;
+table tbody tr td div,
+table tbody tr td p,
+table tbody tr td a {
+  color: #111827 !important;
 }
 
 /* Ensure badges have good contrast */
-.badge-secondary {
+.badge-secondary,
+[class*="badge"] {
   background-color: #f3f4f6 !important;
+  color: #111827 !important;
+}
+
+/* Fix any motion elements */
+table tbody tr {
   color: #111827 !important;
 }

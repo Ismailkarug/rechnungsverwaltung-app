@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/select";
 import { AIUploadDialog } from "./ai-upload-dialog";
 import { CSVImportDialog } from "./csv-import-dialog";
+import AsyncZIPImportDialog from "./async-zip-import-dialog";
 
 interface Rechnung {
   id: string;
@@ -73,6 +74,7 @@ export function RechnungenClient({ rechnungen, filters }: RechnungenClientProps)
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkUpdating, setBulkUpdating] = useState(false);
+  const [asyncZIPDialogOpen, setAsyncZIPDialogOpen] = useState(false);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('de-DE', {
@@ -334,6 +336,14 @@ export function RechnungenClient({ rechnungen, filters }: RechnungenClientProps)
             <div className="flex gap-3">
               <AIUploadDialog />
               <CSVImportDialog />
+              <Button 
+                onClick={() => setAsyncZIPDialogOpen(true)} 
+                variant="outline" 
+                className="flex items-center gap-2 border-purple-300 text-purple-700 hover:bg-purple-50"
+              >
+                <FileText className="h-4 w-4" />
+                Große ZIP importieren (500+)
+              </Button>
               <Button onClick={exportToCsv} className="flex items-center gap-2">
                 <Download className="h-4 w-4" />
                 CSV Export
@@ -662,6 +672,16 @@ export function RechnungenClient({ rechnungen, filters }: RechnungenClientProps)
           </Card>
         </motion.div>
       </main>
+
+      {/* Async ZIP Import Dialog */}
+      <AsyncZIPImportDialog
+        open={asyncZIPDialogOpen}
+        onOpenChange={setAsyncZIPDialogOpen}
+        onImportComplete={() => {
+          // Refresh the page to show new invoices
+          window.location.reload();
+        }}
+      />
     </div>
   );
 }
