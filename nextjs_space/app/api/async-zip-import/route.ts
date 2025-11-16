@@ -50,7 +50,8 @@ async function extractInvoiceData(pdfBuffer: Buffer, fileName: string, cloudPath
 async function processBatch(
   pdfs: { buffer: Buffer; fileName: string }[],
   importId: string,
-  skipDuplicates: boolean
+  skipDuplicates: boolean,
+  invoiceType: string
 ) {
   const progress = importProgress.get(importId);
   if (!progress) return;
@@ -95,6 +96,7 @@ async function processBatch(
               mwstSatz: extractedData.mwstSatz || undefined,
               status: extractedData.zahlungsstatus || undefined,
               dateipfad: cloudPath,
+              typ: invoiceType,
             }
           });
           progress.successful++;
@@ -116,6 +118,7 @@ async function processBatch(
             mwstSatz: extractedData.mwstSatz || '19%',
             status: extractedData.zahlungsstatus || 'offen',
             dateipfad: cloudPath,
+            typ: invoiceType,
           }
         });
         progress.successful++;
@@ -136,6 +139,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const skipDuplicates = formData.get('skipDuplicates') === 'true';
+    const invoiceType = formData.get('invoiceType') as string || 'Eingang'; // Default to 'Eingang'
 
     if (!file) {
       return NextResponse.json({ error: 'Keine Datei hochgeladen' }, { status: 400 });
@@ -182,7 +186,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Start async processing (don't await)
-    processImportAsync(pdfs, importId, skipDuplicates);
+    processImportAsync(pdfs, importId, skipDuplicates, invoiceType);
 
     return NextResponse.json({
       success: true,
@@ -201,7 +205,8 @@ export async function POST(request: NextRequest) {
 async function processImportAsync(
   pdfs: { buffer: Buffer; fileName: string }[],
   importId: string,
-  skipDuplicates: boolean
+  skipDuplicates: boolean,
+  invoiceType: string
 ) {
   const progress = importProgress.get(importId);
   if (!progress) return;
@@ -211,7 +216,7 @@ async function processImportAsync(
     const batchSize = 50;
     for (let i = 0; i < pdfs.length; i += batchSize) {
       const batch = pdfs.slice(i, i + batchSize);
-      await processBatch(batch, importId, skipDuplicates);
+      await processBatch(batch, importId, skipDuplicates, invoiceType);
       
       // Small delay between batches to prevent overload
       if (i + batchSize < pdfs.length) {

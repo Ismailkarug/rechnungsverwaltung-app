@@ -92,6 +92,7 @@ export default function AsyncZIPImportDialog({ open, onOpenChange, onImportCompl
       const formData = new FormData();
       formData.append('file', file);
       formData.append('skipDuplicates', skipDuplicates.toString());
+      formData.append('invoiceType', 'Eingang'); // Eingangsrechnungen
 
       const response = await fetch('/api/async-zip-import', {
         method: 'POST',
