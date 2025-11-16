@@ -21,27 +21,97 @@ function generateImportId(): string {
   return `import_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
-// Extract invoice data using AI
+// Extract invoice data using AI directly
 async function extractInvoiceData(pdfBuffer: Buffer, fileName: string, cloudPath: string) {
   try {
-    const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/extract-invoice-data`, {
+    const base64String = pdfBuffer.toString('base64');
+    
+    const messages = [
+      {
+        role: "user",
+        content: [
+          {
+            type: "file",
+            file: {
+              filename: fileName,
+              file_data: `data:application/pdf;base64,${base64String}`
+            }
+          },
+          {
+            type: "text",
+            text: `Bitte extrahiere die folgenden Informationen aus dieser Rechnung und gib sie als JSON zurück:
+
+{
+  "rechnungsnummer": "Rechnungsnummer (String)",
+  "datum": "Rechnungsdatum im Format YYYY-MM-DD",
+  "lieferant": "Name des Lieferanten/Ausstellers",
+  "betragNetto": "Nettobetrag als Dezimalzahl mit Punkt als Dezimaltrennzeichen (z.B. 157.83)",
+  "mwstSatz": "MwSt-Satz in Prozent (z.B. '19' oder '7' oder '0')",
+  "mwstBetrag": "MwSt-Betrag als Dezimalzahl mit Punkt als Dezimaltrennzeichen (z.B. 29.99)",
+  "betragBrutto": "Bruttobetrag/Gesamtbetrag als Dezimalzahl mit Punkt als Dezimaltrennzeichen (z.B. 187.82)",
+  "leistungszeitraum": "Leistungszeitraum falls vorhanden, sonst null"
+}
+
+WICHTIG für Beträge:
+- Verwende IMMER Punkt (.) als Dezimaltrennzeichen, NIEMALS Komma
+- Entferne alle Tausendertrennzeichen (Punkte, Kommas, Leerzeichen)
+- Beispiele: 
+  - €157.83 → 157.83
+  - 1.234,56 € → 1234.56
+  - 15.000,00 → 15000.00
+- Gib Beträge immer als reine Dezimalzahl ohne Währungssymbol an
+- Bei 0% MwSt: mwstSatz="0", mwstBetrag=0
+
+Falls eine Information nicht vorhanden ist, verwende null. Antworte nur mit dem JSON-Objekt, ohne Code-Blöcke oder Markdown.`
+          }
+        ]
+      }
+    ];
+
+    console.log(`[ZIP Import] AI extraction for: ${fileName}`);
+    const llmResponse = await fetch('https://apps.abacus.ai/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.ABACUSAI_API_KEY}`
+      },
       body: JSON.stringify({
-        fileName,
-        fileBuffer: pdfBuffer.toString('base64'),
-        cloudPath
+        model: 'gpt-4.1-mini',
+        messages: messages,
+        response_format: { type: "json_object" },
+        max_tokens: 1000
       })
     });
 
-    if (!response.ok) {
-      throw new Error(`AI extraction failed: ${response.statusText}`);
+    if (!llmResponse.ok) {
+      const errorText = await llmResponse.text();
+      console.error(`[ZIP Import] LLM API error for ${fileName}:`, llmResponse.status, errorText);
+      throw new Error(`LLM API Fehler: ${llmResponse.status} - ${errorText}`);
     }
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error in AI extraction:', error);
+    const llmData = await llmResponse.json();
+    
+    if (!llmData.choices || !llmData.choices[0] || !llmData.choices[0].message) {
+      throw new Error('Ungültige LLM-Antwort');
+    }
+    
+    const extractedData = JSON.parse(llmData.choices[0].message.content);
+    console.log(`[ZIP Import] Extracted data for ${fileName}:`, extractedData);
+
+    // Return in the format expected by processBatch
+    return {
+      rechnungsnummer: extractedData.rechnungsnummer || '',
+      datum: extractedData.datum || new Date().toISOString().split('T')[0],
+      lieferant: extractedData.lieferant || '',
+      nettobetrag: extractedData.betragNetto || 0,
+      mwst: extractedData.mwstBetrag || 0,
+      bruttobetrag: extractedData.betragBrutto || 0,
+      mwstSatz: extractedData.mwstSatz || '19%',
+      zahlungsstatus: 'offen',
+      leistungszeitraum: extractedData.leistungszeitraum || null
+    };
+  } catch (error: any) {
+    console.error(`[ZIP Import] Error in AI extraction for ${fileName}:`, error);
     throw error;
   }
 }
