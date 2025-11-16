@@ -1,20 +1,68 @@
-**/node_modules
-.next
-.cache
-.build
-*.nfs*
-**/.yarn/
-!**/.yarn/patches
-!**/.yarn/plugins
-!**/.yarn/releases
-!**/.yarn/sdks
-!**/.yarn/versions
-!**/.yarn/cache
-**/.yarn/build-state.yml
-**/.yarn/install-state.gz
-dist
-target
-out
-.deploy
-.logs
+
+# Dependencies
+node_modules/
+nextjs_space/node_modules/
+
+# Next.js
+nextjs_space/.next/
+nextjs_space/.build/
+nextjs_space/out/
+
+# Environment files
+nextjs_space/.env
+nextjs_space/.env.local
+nextjs_space/.env.*.local
+.env
+.env.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+app.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+scripts/__pycache__/
+
+# Database
+*.db
+*.sqlite
+
+# Temporary files
+/tmp/
+*.tmp
+
+# Build artifacts
 *.tsbuildinfo
+nextjs_space/tsconfig.tsbuildinfo
+
+# Prisma
+nextjs_space/prisma/migrations/
+
+# Data files (optional - auskommentieren wenn data/ getrackt werden soll)
+# data/
+# invoices/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Yarn
+.yarn/
+.pnp.*
