@@ -5,21 +5,29 @@ import { DashboardClient } from './_components/dashboard-client';
 export const dynamic = "force-dynamic";
 
 async function getKPIData() {
-  const totalRechnungen = await prisma.rechnung.count();
+  // Nur Rechnungen mit gültigem Bruttobetrag berücksichtigen
+  const whereClause = { betragBrutto: { gt: 0 } };
+  
+  const totalRechnungen = await prisma.rechnung.count({
+    where: whereClause
+  });
   
   const gesamtsumme = await prisma.rechnung.aggregate({
+    where: whereClause,
     _sum: {
       betragBrutto: true
     }
   });
   
   const durchschnitt = await prisma.rechnung.aggregate({
+    where: whereClause,
     _avg: {
       betragBrutto: true
     }
   });
   
   const lieferanten = await prisma.rechnung.findMany({
+    where: whereClause,
     select: { lieferant: true },
     distinct: ['lieferant']
   });
@@ -34,6 +42,9 @@ async function getKPIData() {
 
 async function getChartData() {
   const rechnungen = await prisma.rechnung.findMany({
+    where: {
+      betragBrutto: { gt: 0 } // Nur gültige Rechnungen
+    },
     select: {
       datum: true,
       betragBrutto: true,
@@ -55,6 +66,9 @@ async function getChartData() {
 
 async function getLetzteRechnungen() {
   const rechnungen = await prisma.rechnung.findMany({
+    where: {
+      betragBrutto: { gt: 0 } // Nur gültige Rechnungen
+    },
     take: 5,
     orderBy: {
       datum: 'desc'

@@ -278,7 +278,10 @@ export function StatistikenClient({ data }: StatistikenClientProps) {
                     {formatCurrency(gesamtStatistiken.gesamtMwst)}
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    {((gesamtStatistiken.gesamtMwst / gesamtStatistiken.gesamtBrutto) * 100).toFixed(1)}% vom Gesamtbetrag
+                    {gesamtStatistiken.gesamtNetto > 0 
+                      ? `${((gesamtStatistiken.gesamtMwst / gesamtStatistiken.gesamtNetto) * 100).toFixed(1)}% MwSt-Satz (durchschnittlich)`
+                      : 'Keine Daten verfügbar'
+                    }
                   </p>
                 </CardContent>
               </Card>

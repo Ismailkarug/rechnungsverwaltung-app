@@ -6,6 +6,9 @@ export const dynamic = "force-dynamic";
 
 async function getStatisticData() {
   const rechnungen = await prisma.rechnung.findMany({
+    where: {
+      betragBrutto: { gt: 0 } // Nur Rechnungen mit gültigem Bruttobetrag
+    },
     select: {
       datum: true,
       betragBrutto: true,
