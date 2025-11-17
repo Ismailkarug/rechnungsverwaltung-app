@@ -245,7 +245,7 @@ export function AIUploadDialog({ onUploadSuccess }: { onUploadSuccess?: () => vo
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2">
+        <Button variant="outline" className="gap-2 bg-indigo-100 text-indigo-900 border-indigo-300 hover:bg-indigo-200 hover:text-indigo-950 font-medium">
           <Upload className="h-4 w-4" />
           Rechnung hochladen
         </Button>

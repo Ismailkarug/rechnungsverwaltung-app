@@ -114,7 +114,7 @@ RE-2024-003,2024-02-01,Telekom,75.50,19,14.35,89.85,02/2024,Unbezahlt`;
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2">
+        <Button variant="outline" className="gap-2 bg-green-100 text-green-900 border-green-300 hover:bg-green-200 hover:text-green-950 font-medium">
           <Upload className="h-4 w-4" />
           Rechnungen hochladen
         </Button>
