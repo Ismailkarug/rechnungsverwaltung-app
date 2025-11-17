@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import AdmZip from 'adm-zip';
 import { uploadFile } from '@/lib/s3';
 import { prisma } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 // In-memory storage for import progress (in production, use Redis or DB)
 const importProgress = new Map<string, {
@@ -205,6 +206,10 @@ async function processBatch(
 
 // POST handler - Start async import
 export async function POST(request: NextRequest) {
+  // Authentifizierung prüfen
+  const { session, error } = await requireAuth();
+  if (error) return error;
+
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -309,6 +314,10 @@ async function processImportAsync(
 
 // GET handler - Check progress
 export async function GET(request: NextRequest) {
+  // Authentifizierung prüfen
+  const { session, error } = await requireAuth();
+  if (error) return error;
+
   const { searchParams } = new URL(request.url);
   const importId = searchParams.get('importId');
 

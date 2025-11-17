@@ -1,6 +1,7 @@
 
 import { prisma } from '@/lib/db';
 import { VerkaufsrechnungenClient } from './_components/verkaufsrechnungen-client';
+import '../rechnungen/fix-colors.css';
 
 export const dynamic = "force-dynamic";
 

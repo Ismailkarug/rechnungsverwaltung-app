@@ -1,11 +1,16 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadFile } from '@/lib/s3';
+import { requireAuth } from '@/lib/api-auth';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+  // Authentifizierung prüfen
+  const { session, error } = await requireAuth();
+  if (error) return error;
+
   try {
     const formData = await request.formData();
     const files = formData.getAll('files') as File[];

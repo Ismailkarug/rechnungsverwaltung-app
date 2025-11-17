@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function GET() {
+  // Authentifizierung prüfen
+  const { session, error } = await requireAuth();
+  if (error) return error;
+
   try {
     const templatePath = path.join(process.cwd(), '..', 'data', 'invoice_template.csv');
     

@@ -5,14 +5,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { 
   BarChart3, 
   FileText, 
   TrendingUp, 
   Download,
   Home,
-  Receipt
+  Receipt,
+  LogOut
 } from "lucide-react";
+import { signOut } from "next-auth/react";
 
 const navigation = [
   {
