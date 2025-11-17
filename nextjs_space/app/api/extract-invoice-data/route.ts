@@ -77,7 +77,10 @@ export async function POST(request: NextRequest) {
   "mwstSatz": "MwSt-Satz in Prozent (z.B. '19' oder '7' oder '0')",
   "mwstBetrag": "MwSt-Betrag als Dezimalzahl mit Punkt als Dezimaltrennzeichen (z.B. 29.99)",
   "betragBrutto": "Bruttobetrag/Gesamtbetrag als Dezimalzahl mit Punkt als Dezimaltrennzeichen (z.B. 187.82)",
-  "leistungszeitraum": "Leistungszeitraum falls vorhanden, sonst null"
+  "leistungszeitraum": "Leistungszeitraum falls vorhanden, sonst null",
+  "zahlungsmethode": "Zahlungsmethode falls sichtbar (z.B. 'eBay', 'Amazon Marketplace', 'PayPal', 'Shopify'), sonst null",
+  "bestellnummer": "Bestellnummer oder Order-ID der Plattform falls vorhanden, sonst null",
+  "referenz": "Jegliche Referenznummer (z.B. beginnend mit #) falls vorhanden, sonst null"
 }
 
 WICHTIG für Beträge:
