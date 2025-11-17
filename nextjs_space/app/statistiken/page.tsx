@@ -15,7 +15,8 @@ async function getStatisticData() {
       betragNetto: true,
       mwstBetrag: true,
       lieferant: true,
-      mwstSatz: true
+      mwstSatz: true,
+      typ: true
     },
     orderBy: {
       datum: 'asc'
@@ -30,6 +31,7 @@ async function getStatisticData() {
     mwstBetrag: Number(r.mwstBetrag) || 0,
     lieferant: r.lieferant,
     mwstSatz: r.mwstSatz,
+    typ: r.typ || 'Eingang',
     monat: r.datum.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' }),
     monatKurz: r.datum.toLocaleDateString('de-DE', { month: 'short', year: '2-digit' }),
     quartal: `Q${Math.ceil((r.datum.getMonth() + 1) / 3)} ${r.datum.getFullYear()}`,
