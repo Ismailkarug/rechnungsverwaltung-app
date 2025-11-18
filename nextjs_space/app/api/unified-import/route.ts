@@ -1,352 +1,435 @@
+/**
+ * Unified Platform Import API
+ * Handles CSV, PDF, and ZIP imports for eBay, Amazon, and Shopify
+ */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { parse } from 'csv-parse/sync';
 import { uploadFile } from '@/lib/s3';
 import AdmZip from 'adm-zip';
 import { requireAuth } from '@/lib/api-auth';
+import { Platform } from '@prisma/client';
+import {
+  parseCSV,
+  parsePDF,
+  detectPlatform,
+  calculateSummary,
+  ImportResult,
+  ImportedInvoice,
+  ImportedFee,
+  ImportError,
+} from '@/src/lib/platform-import-utils';
 
-export const maxDuration = 120;
+export const maxDuration = 300; // 5 minutes for large imports
 export const dynamic = 'force-dynamic';
 
-async function extractInvoiceWithAI(file: Buffer, fileName: string): Promise<any> {
+// ============================================================================
+// MAIN HANDLER
+// ============================================================================
+
+export async function POST(req: NextRequest) {
   try {
-    // Upload to S3 first
-    const cloudStoragePath = await uploadFile(file, fileName);
+    const user = await requireAuth(req);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const formData = await req.formData();
+    const files = formData.getAll('files') as File[];
+    const manualPlatform = (formData.get('platform') as string) || 'NONE';
+
+    if (!files || files.length === 0) {
+      return NextResponse.json(
+        { error: 'Keine Dateien hochgeladen' },
+        { status: 400 }
+      );
+    }
+
+    console.log(`[Unified Import] Starting import of ${files.length} files`);
+    console.log(`[Unified Import] Manual platform: ${manualPlatform}`);
+
+    const result: ImportResult = {
+      success: true,
+      totalFiles: files.length,
+      processedFiles: 0,
+      skippedFiles: 0,
+      failedFiles: 0,
+      invoices: [],
+      fees: [],
+      errors: [],
+      summary: {
+        platformCounts: { EBAY: 0, AMAZON: 0, SHOPIFY: 0, OTHER: 0 },
+        totals: { netAmount: 0, vatAmount: 0, grossAmount: 0, totalFees: 0 },
+        counts: { successfulInvoices: 0, successfulFees: 0, skippedRows: 0, failedRows: 0 },
+      },
+    };
+
+    // Process each file
+    for (const file of files) {
+      try {
+        const fileName = file.name;
+        const fileBuffer = Buffer.from(await file.arrayBuffer());
+        const fileExtension = fileName.split('.').pop()?.toLowerCase();
+
+        console.log(`[Unified Import] Processing: ${fileName} (${fileExtension})`);
+
+        if (fileExtension === 'zip') {
+          // Handle ZIP file
+          await processZipFile(fileBuffer, fileName, manualPlatform as Platform, result);
+        } else if (fileExtension === 'csv') {
+          // Handle CSV file
+          await processCSVFile(fileBuffer, fileName, manualPlatform as Platform, result);
+        } else if (fileExtension === 'pdf') {
+          // Handle PDF file
+          await processPDFFile(fileBuffer, fileName, manualPlatform as Platform, result);
+        } else {
+          result.skippedFiles++;
+          result.errors.push({
+            fileName,
+            error: 'Unsupported file type',
+            details: `File extension .${fileExtension} is not supported`,
+          });
+        }
+
+        result.processedFiles++;
+      } catch (error) {
+        result.failedFiles++;
+        result.errors.push({
+          fileName: file.name,
+          error: 'File processing failed',
+          details: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    // Calculate summary
+    result.summary = calculateSummary(result.invoices, result.fees);
+
+    // Save to database
+    await saveToDatabase(result, user.id);
+
+    console.log(`[Unified Import] Completed. Summary:`, result.summary);
+
+    return NextResponse.json({
+      success: true,
+      message: `${result.summary.counts.successfulInvoices} Rechnungen erfolgreich importiert`,
+      result,
+    });
+  } catch (error) {
+    console.error('[Unified Import] Error:', error);
+    return NextResponse.json(
+      {
+        error: 'Import fehlgeschlagen',
+        details: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 }
+    );
+  }
+}
+
+// ============================================================================
+// FILE PROCESSORS
+// ============================================================================
+
+async function processZipFile(
+  buffer: Buffer,
+  fileName: string,
+  manualPlatform: Platform,
+  result: ImportResult
+): Promise<void> {
+  console.log(`[ZIP Processor] Extracting: ${fileName}`);
+
+  try {
+    const zip = new AdmZip(buffer);
+    const zipEntries = zip.getEntries();
+
+    console.log(`[ZIP Processor] Found ${zipEntries.length} files in ZIP`);
+
+    for (const entry of zipEntries) {
+      if (entry.isDirectory) continue;
+
+      const entryName = entry.entryName;
+      const entryExtension = entryName.split('.').pop()?.toLowerCase();
+      const entryBuffer = entry.getData();
+
+      console.log(`[ZIP Processor] Processing entry: ${entryName}`);
+
+      if (entryExtension === 'csv') {
+        await processCSVFile(entryBuffer, entryName, manualPlatform, result);
+      } else if (entryExtension === 'pdf') {
+        await processPDFFile(entryBuffer, entryName, manualPlatform, result);
+      } else {
+        result.skippedFiles++;
+        console.log(`[ZIP Processor] Skipped unsupported file: ${entryName}`);
+      }
+    }
+  } catch (error) {
+    result.errors.push({
+      fileName,
+      error: 'ZIP extraction failed',
+      details: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+async function processCSVFile(
+  buffer: Buffer,
+  fileName: string,
+  manualPlatform: Platform,
+  result: ImportResult
+): Promise<void> {
+  console.log(`[CSV Processor] Processing: ${fileName}`);
+
+  try {
+    const content = buffer.toString('utf-8');
     
-    // Convert to base64 for LLM API
-    const base64String = file.toString('base64');
+    // Detect platform
+    const platform = manualPlatform !== 'NONE' 
+      ? manualPlatform 
+      : detectPlatform(content, fileName, undefined);
+
+    console.log(`[CSV Processor] Detected platform: ${platform}`);
+
+    // Parse CSV
+    const parsed = parseCSV(content, platform);
+
+    // Add to result
+    result.invoices.push(...parsed.invoices);
+    result.fees.push(...parsed.fees);
+    result.errors.push(...parsed.errors);
+
+    console.log(`[CSV Processor] Extracted ${parsed.invoices.length} invoices, ${parsed.fees.length} fees`);
+  } catch (error) {
+    result.errors.push({
+      fileName,
+      error: 'CSV processing failed',
+      details: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+async function processPDFFile(
+  buffer: Buffer,
+  fileName: string,
+  manualPlatform: Platform,
+  result: ImportResult
+): Promise<void> {
+  console.log(`[PDF Processor] Processing: ${fileName}`);
+
+  try {
+    // Parse PDF
+    const parsed = await parsePDF(buffer, fileName, manualPlatform);
+
+    // If parsing failed or no data extracted, try AI extraction
+    if (parsed.invoices.length === 0 && parsed.errors.length > 0) {
+      console.log(`[PDF Processor] Standard parsing failed, trying AI extraction`);
+      const aiResult = await extractWithAI(buffer, fileName, manualPlatform);
+      if (aiResult) {
+        result.invoices.push(aiResult);
+      }
+    } else {
+      // Add parsed results
+      result.invoices.push(...parsed.invoices);
+      result.fees.push(...parsed.fees);
+      result.errors.push(...parsed.errors);
+    }
+
+    console.log(`[PDF Processor] Extracted ${parsed.invoices.length} invoices, ${parsed.fees.length} fees`);
+  } catch (error) {
+    result.errors.push({
+      fileName,
+      error: 'PDF processing failed',
+      details: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+// ============================================================================
+// AI EXTRACTION (FALLBACK)
+// ============================================================================
+
+async function extractWithAI(
+  buffer: Buffer,
+  fileName: string,
+  platform: Platform
+): Promise<ImportedInvoice | null> {
+  try {
+    console.log(`[AI Extract] Processing: ${fileName}`);
+
+    // Upload to S3
+    const cloudStoragePath = await uploadFile(buffer, fileName);
+
+    // Convert to base64
+    const base64String = buffer.toString('base64');
 
     const messages = [
       {
-        role: "user",
+        role: 'user',
         content: [
           {
-            type: "file",
+            type: 'file',
             file: {
               filename: fileName,
-              file_data: `data:application/pdf;base64,${base64String}`
-            }
+              file_data: `data:application/pdf;base64,${base64String}`,
+            },
           },
           {
-            type: "text",
-            text: `Bitte extrahiere die folgenden Informationen aus dieser Rechnung und gib sie als JSON zurück:
-
+            type: 'text',
+            text: `Extract invoice data from this PDF and return as JSON:
 {
-  "rechnungsnummer": "Rechnungsnummer (String)",
-  "datum": "Rechnungsdatum im Format YYYY-MM-DD",
-  "lieferant": "Name des Lieferanten/Ausstellers",
-  "betragNetto": "Nettobetrag als Dezimalzahl mit Punkt als Dezimaltrennzeichen (z.B. 157.83)",
-  "mwstSatz": "MwSt-Satz in Prozent (z.B. '19' oder '7' oder '0')",
-  "mwstBetrag": "MwSt-Betrag als Dezimalzahl mit Punkt als Dezimaltrennzeichen (z.B. 29.99)",
-  "betragBrutto": "Bruttobetrag/Gesamtbetrag als Dezimalzahl mit Punkt als Dezimaltrennzeichen (z.B. 187.82)",
-  "leistungszeitraum": "Leistungszeitraum falls vorhanden, sonst null"
+  "invoiceNumber": "Invoice number",
+  "date": "Date in YYYY-MM-DD format",
+  "supplier": "Supplier/issuer name",
+  "netAmount": "Net amount as decimal (e.g. 157.83)",
+  "vatAmount": "VAT amount as decimal (e.g. 29.99)",
+  "grossAmount": "Gross/total amount as decimal (e.g. 187.82)",
+  "currency": "Currency code (e.g. EUR)",
+  "description": "Brief description"
 }
 
-WICHTIG für Beträge:
-- Verwende IMMER Punkt (.) als Dezimaltrennzeichen, NIEMALS Komma
-- Entferne alle Tausendertrennzeichen (Punkte, Kommas, Leerzeichen)
-- Beispiele: 
-  - €157.83 → 157.83
-  - 1.234,56 € → 1234.56
-  - 15.000,00 → 15000.00
-  - €1,234.56 → 1234.56
-- Gib Beträge immer als reine Dezimalzahl ohne Währungssymbol an
-- Bei 0% MwSt: mwstSatz="0", mwstBetrag=0
-
-Falls eine Information nicht vorhanden ist, verwende null. Antworte nur mit dem JSON-Objekt, ohne Code-Blöcke oder Markdown.`
-          }
-        ]
-      }
+IMPORTANT:
+- Use dot (.) as decimal separator
+- Remove all thousand separators
+- Return only the JSON object`,
+          },
+        ],
+      },
     ];
 
-    console.log(`[AI Extract] Processing: ${fileName}`);
     const llmResponse = await fetch('https://apps.abacus.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.ABACUSAI_API_KEY}`
+        Authorization: `Bearer ${process.env.ABACUSAI_API_KEY}`,
       },
       body: JSON.stringify({
         model: 'gpt-4.1-mini',
-        messages: messages,
-        response_format: { type: "json_object" },
-        max_tokens: 1000
-      })
+        messages,
+        response_format: { type: 'json_object' },
+        max_tokens: 1000,
+      }),
     });
 
     if (!llmResponse.ok) {
-      const errorText = await llmResponse.text();
-      console.error(`[AI Extract] LLM API error for ${fileName}:`, llmResponse.status, errorText);
-      throw new Error(`LLM API Fehler: ${llmResponse.status}`);
+      console.error(`[AI Extract] LLM API error:`, llmResponse.status);
+      return null;
     }
 
     const llmData = await llmResponse.json();
-    console.log(`[AI Extract] LLM response for ${fileName}:`, JSON.stringify(llmData, null, 2));
-    
-    if (!llmData.choices || !llmData.choices[0] || !llmData.choices[0].message) {
-      throw new Error('Ungültige LLM-Antwort');
-    }
-    
     const extractedData = JSON.parse(llmData.choices[0].message.content);
-    console.log(`[AI Extract] Extracted data for ${fileName}:`, extractedData);
+
+    console.log(`[AI Extract] Extracted:`, extractedData);
 
     return {
-      success: true,
-      cloudStoragePath,
-      extractedData: {
-        rechnungsnummer: extractedData.rechnungsnummer || '',
-        datum: extractedData.datum || new Date().toISOString().split('T')[0],
-        lieferant: extractedData.lieferant || '',
-        betragNetto: parseFloat(extractedData.betragNetto) || 0,
-        mwstSatz: extractedData.mwstSatz || '19',
-        mwstBetrag: parseFloat(extractedData.mwstBetrag) || 0,
-        betragBrutto: parseFloat(extractedData.betragBrutto) || 0,
-        leistungszeitraum: extractedData.leistungszeitraum || null,
-        status: 'Unbezahlt'
-      }
+      invoiceNumber: extractedData.invoiceNumber || fileName.replace('.pdf', ''),
+      transactionDate: new Date(extractedData.date || new Date()),
+      customerName: extractedData.supplier || '',
+      netAmount: parseFloat(extractedData.netAmount) || 0,
+      vatAmount: parseFloat(extractedData.vatAmount) || 0,
+      grossAmount: parseFloat(extractedData.grossAmount) || 0,
+      currency: extractedData.currency || 'EUR',
+      platform: platform !== 'NONE' ? platform : 'OTHER',
+      type: 'EINGANG',
+      description: extractedData.description || '',
     };
-  } catch (error: any) {
-    console.error(`[AI Extract] Error extracting ${fileName}:`, error);
-    return {
-      success: false,
-      error: error.message || 'Fehler beim Extrahieren der Rechnungsdaten'
-    };
+  } catch (error) {
+    console.error(`[AI Extract] Error:`, error);
+    return null;
   }
 }
 
-async function processCSV(fileContent: string, typ: string = 'Eingang') {
-  const records = parse(fileContent, {
-    columns: true,
-    skip_empty_lines: true,
-    delimiter: ',',
-    trim: true
-  });
+// ============================================================================
+// DATABASE SAVE
+// ============================================================================
 
-  const savedInvoices = [];
-  const errors = [];
-
-  for (const record of records) {
-    try {
-      if (!record.rechnungsnummer || !record.datum || !record.lieferant) {
-        errors.push({
-          rechnungsnummer: record.rechnungsnummer || 'Unbekannt',
-          error: 'Pflichtfelder fehlen'
-        });
-        continue;
-      }
-
-      const datum = new Date(record.datum);
-      if (isNaN(datum.getTime())) {
-        errors.push({
-          rechnungsnummer: record.rechnungsnummer,
-          error: 'Ungültiges Datum'
-        });
-        continue;
-      }
-
-      const betragNetto = parseFloat(record.betragNetto || '0');
-      const mwstBetrag = parseFloat(record.mwstBetrag || '0');
-      const betragBrutto = parseFloat(record.betragBrutto || '0');
-
-      if (isNaN(betragNetto) || isNaN(mwstBetrag) || isNaN(betragBrutto)) {
-        errors.push({
-          rechnungsnummer: record.rechnungsnummer,
-          error: 'Ungültige Beträge'
-        });
-        continue;
-      }
-
-      const rechnung = await prisma.rechnung.create({
-        data: {
-          rechnungsnummer: record.rechnungsnummer,
-          datum: datum,
-          lieferant: record.lieferant,
-          betragNetto: betragNetto,
-          mwstSatz: record.mwstSatz || '19',
-          mwstBetrag: mwstBetrag,
-          betragBrutto: betragBrutto,
-          leistungszeitraum: record.leistungszeitraum || null,
-          dateipfad: null,
-          status: record.status || 'Unbezahlt',
-          verarbeitungsdatum: new Date(),
-          typ: typ
-        }
-      });
-
-      savedInvoices.push({
-        ...rechnung,
-        betragNetto: Number(rechnung.betragNetto),
-        betragBrutto: Number(rechnung.betragBrutto),
-        mwstBetrag: Number(rechnung.mwstBetrag)
-      });
-    } catch (error: any) {
-      if (error.code === 'P2002') {
-        errors.push({
-          rechnungsnummer: record.rechnungsnummer,
-          error: 'Rechnungsnummer existiert bereits'
-        });
-      } else {
-        errors.push({
-          rechnungsnummer: record.rechnungsnummer,
-          error: error.message || 'Fehler beim Speichern'
-        });
-      }
-    }
-  }
-
-  return { savedInvoices, errors };
-}
-
-async function processPDF(file: Buffer, fileName: string, typ: string = 'Eingang') {
-  const extractionResult = await extractInvoiceWithAI(file, fileName);
-  
-  if (!extractionResult.success) {
-    return {
-      savedInvoices: [],
-      errors: [{
-        rechnungsnummer: fileName,
-        error: extractionResult.error
-      }]
-    };
-  }
+async function saveToDatabase(result: ImportResult, userId: string): Promise<void> {
+  console.log(`[DB Save] Saving ${result.invoices.length} invoices and ${result.fees.length} fees`);
 
   try {
-    const data = extractionResult.extractedData;
-    
-    // Validate required fields
-    if (!data.rechnungsnummer || !data.lieferant) {
-      return {
-        savedInvoices: [],
-        errors: [{
-          rechnungsnummer: fileName,
-          error: 'Pflichtfelder konnten nicht extrahiert werden'
-        }]
-      };
-    }
+    // Save invoices
+    for (const invoice of result.invoices) {
+      try {
+        // Check if invoice already exists
+        const existing = await prisma.rechnung.findFirst({
+          where: {
+            rechnungsnummer: invoice.invoiceNumber,
+            typ: invoice.type,
+          },
+        });
 
-    const rechnung = await prisma.rechnung.create({
-      data: {
-        rechnungsnummer: data.rechnungsnummer,
-        datum: new Date(data.datum),
-        lieferant: data.lieferant,
-        betragNetto: data.betragNetto,
-        mwstSatz: data.mwstSatz,
-        mwstBetrag: data.mwstBetrag,
-        betragBrutto: data.betragBrutto,
-        leistungszeitraum: data.leistungszeitraum,
-        dateipfad: extractionResult.cloudStoragePath,
-        status: data.status,
-        verarbeitungsdatum: new Date(),
-        typ: typ
-      }
-    });
-
-    return {
-      savedInvoices: [{
-        ...rechnung,
-        betragNetto: Number(rechnung.betragNetto),
-        betragBrutto: Number(rechnung.betragBrutto),
-        mwstBetrag: Number(rechnung.mwstBetrag)
-      }],
-      errors: []
-    };
-  } catch (error: any) {
-    return {
-      savedInvoices: [],
-      errors: [{
-        rechnungsnummer: extractionResult.extractedData.rechnungsnummer || fileName,
-        error: error.code === 'P2002' ? 'Rechnungsnummer existiert bereits' : error.message || 'Fehler beim Speichern'
-      }]
-    };
-  }
-}
-
-export async function POST(request: NextRequest) {
-  // Authentifizierung prüfen
-  const { session, error } = await requireAuth();
-  if (error) return error;
-
-  try {
-    const formData = await request.formData();
-    const file = formData.get('file') as File;
-    const typ = (formData.get('typ') as string) || 'Eingang'; // Default to 'Eingang' if not specified
-    
-    if (!file) {
-      return NextResponse.json(
-        { error: 'Keine Datei hochgeladen' },
-        { status: 400 }
-      );
-    }
-
-    const fileName = file.name.toLowerCase();
-    let allSavedInvoices: any[] = [];
-    let allErrors: any[] = [];
-
-    // Handle CSV files
-    if (fileName.endsWith('.csv')) {
-      const fileContent = await file.text();
-      const result = await processCSV(fileContent, typ);
-      allSavedInvoices = result.savedInvoices;
-      allErrors = result.errors;
-    }
-    // Handle PDF files
-    else if (fileName.endsWith('.pdf')) {
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const result = await processPDF(buffer, file.name, typ);
-      allSavedInvoices = result.savedInvoices;
-      allErrors = result.errors;
-    }
-    // Handle ZIP files
-    else if (fileName.endsWith('.zip')) {
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const zip = new AdmZip(buffer);
-      const zipEntries = zip.getEntries();
-
-      for (const entry of zipEntries) {
-        if (entry.isDirectory) continue;
-        
-        const entryName = entry.entryName.toLowerCase();
-        
-        // Process PDFs in ZIP
-        if (entryName.endsWith('.pdf')) {
-          const pdfBuffer = entry.getData();
-          const result = await processPDF(pdfBuffer, entry.name, typ);
-          allSavedInvoices.push(...result.savedInvoices);
-          allErrors.push(...result.errors);
+        if (existing) {
+          console.log(`[DB Save] Invoice ${invoice.invoiceNumber} already exists, skipping`);
+          continue;
         }
-        // Process CSVs in ZIP
-        else if (entryName.endsWith('.csv')) {
-          const csvContent = entry.getData().toString('utf-8');
-          const result = await processCSV(csvContent, typ);
-          allSavedInvoices.push(...result.savedInvoices);
-          allErrors.push(...result.errors);
+
+        // Create invoice
+        await prisma.rechnung.create({
+          data: {
+            rechnungsnummer: invoice.invoiceNumber,
+            datum: invoice.transactionDate,
+            lieferant: invoice.customerName || 'Unbekannt',
+            betragNetto: invoice.netAmount,
+            mwstSatz: invoice.vatAmount > 0 ? '19' : '0',
+            mwstBetrag: invoice.vatAmount,
+            betragBrutto: invoice.grossAmount,
+            typ: invoice.type,
+            plattform: invoice.platform,
+            platformOrderId: invoice.platformOrderId,
+            paymentMethod: invoice.paymentMethod,
+            referenceRaw: invoice.referenceRaw,
+            beschreibung: invoice.description,
+            userId,
+          },
+        });
+
+        console.log(`[DB Save] Saved invoice: ${invoice.invoiceNumber}`);
+      } catch (error) {
+        console.error(`[DB Save] Error saving invoice ${invoice.invoiceNumber}:`, error);
+        result.errors.push({
+          fileName: invoice.invoiceNumber,
+          error: 'Database save failed',
+          details: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    // Save fees
+    for (const fee of result.fees) {
+      try {
+        // Find related invoice
+        const relatedInvoice = await prisma.rechnung.findFirst({
+          where: {
+            rechnungsnummer: fee.invoiceNumber,
+          },
+        });
+
+        if (!relatedInvoice) {
+          console.log(`[DB Save] No related invoice found for fee: ${fee.invoiceNumber}`);
+          continue;
         }
+
+        // Create fee
+        await prisma.platformFee.create({
+          data: {
+            rechnungId: relatedInvoice.id,
+            feeType: fee.feeType,
+            amount: fee.amount,
+            currency: fee.currency,
+            description: fee.description,
+            transactionDate: fee.transactionDate,
+            platform: fee.platform,
+          },
+        });
+
+        console.log(`[DB Save] Saved fee for invoice: ${fee.invoiceNumber}`);
+      } catch (error) {
+        console.error(`[DB Save] Error saving fee:`, error);
       }
     }
-    else {
-      return NextResponse.json(
-        { error: 'Nur CSV, PDF oder ZIP-Dateien sind erlaubt' },
-        { status: 400 }
-      );
-    }
 
-    return NextResponse.json({
-      success: true,
-      savedInvoices: allSavedInvoices,
-      errors: allErrors,
-      summary: {
-        total: allSavedInvoices.length + allErrors.length,
-        success: allSavedInvoices.length,
-        failed: allErrors.length
-      }
-    });
-
-  } catch (error: any) {
-    console.error('Unified import error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Fehler beim Importieren der Datei' },
-      { status: 500 }
-    );
+    console.log(`[DB Save] Completed`);
+  } catch (error) {
+    console.error(`[DB Save] Error:`, error);
+    throw error;
   }
 }
