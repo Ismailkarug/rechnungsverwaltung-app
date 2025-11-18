@@ -46,21 +46,27 @@ const navigation = [
   },
   {
     name: "Vertriebskanäle",
+    href: "/vertriebskanaele",
     icon: Store,
     description: "Marktplatz-Übersicht",
     children: [
       {
-        name: "eBay Finance",
+        name: "Übersicht",
+        href: "/vertriebskanaele",
+        description: "Alle Kanäle auf einen Blick"
+      },
+      {
+        name: "eBay",
         href: "/vertriebskanaele/ebay",
         description: "eBay Umsatz & Gebühren"
       },
       {
-        name: "Amazon Finance",
+        name: "Amazon",
         href: "/vertriebskanaele/amazon",
         description: "Amazon Umsatz & Gebühren"
       },
       {
-        name: "Shopify Finance",
+        name: "Shopify",
         href: "/vertriebskanaele/shopify",
         description: "Shopify Umsatz & Gebühren"
       }
