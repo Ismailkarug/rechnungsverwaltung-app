@@ -34,15 +34,9 @@ function formatNumber(value: number) {
 function PlatformCard({ summary }: { summary: PlatformSummary }) {
   const label = PLATFORM_LABEL[summary.platform];
 
-  const netProfit =
-    summary.outgoing.netTotal -
-    summary.outgoing.vatTotal -
-    summary.incoming.netTotal;
-
-  const margin =
-    summary.outgoing.netTotal > 0
-      ? (netProfit / summary.outgoing.netTotal) * 100
-      : 0;
+  // Use the new summary structure
+  const netProfit = summary.summary?.netProfit || 0;
+  const margin = summary.summary?.profitMargin || 0;
 
   return (
     <Link
@@ -60,19 +54,27 @@ function PlatformCard({ summary }: { summary: PlatformSummary }) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <p className="text-xs text-gray-500">Rechnungen gesamt</p>
-          <p className="text-lg font-semibold text-gray-800">{formatNumber(summary.invoiceCount)}</p>
+          <p className="text-lg font-semibold text-gray-800">
+            {formatNumber(summary.summary?.orderCount || 0)}
+          </p>
         </div>
         <div>
           <p className="text-xs text-gray-500">Bruttobetrag gesamt</p>
-          <p className="text-lg font-semibold text-gray-800">{formatCurrency(summary.grossTotal)}</p>
+          <p className="text-lg font-semibold text-gray-800">
+            {formatCurrency(summary.summary?.grossTotal || 0)}
+          </p>
         </div>
         <div>
           <p className="text-xs text-gray-500">Nettobetrag gesamt</p>
-          <p className="text-lg font-semibold text-gray-800">{formatCurrency(summary.netTotal)}</p>
+          <p className="text-lg font-semibold text-gray-800">
+            {formatCurrency(summary.summary?.netTotal || 0)}
+          </p>
         </div>
         <div>
           <p className="text-xs text-gray-500">MwSt gesamt</p>
-          <p className="text-lg font-semibold text-gray-800">{formatCurrency(summary.vatTotal)}</p>
+          <p className="text-lg font-semibold text-gray-800">
+            {formatCurrency(summary.summary?.vatTotal || 0)}
+          </p>
         </div>
       </div>
 
@@ -80,32 +82,32 @@ function PlatformCard({ summary }: { summary: PlatformSummary }) {
         <div>
           <p className="text-xs font-semibold text-gray-700 mb-1">Verkäufe (Ausgang)</p>
           <p className="text-xs text-gray-600">
-            Anzahl: {formatNumber(summary.outgoing.invoiceCount)}
+            Anzahl: {formatNumber(summary.breakdown?.outgoing?.count || 0)}
           </p>
           <p className="text-xs text-gray-600">
-            Netto: {formatCurrency(summary.outgoing.netTotal)}
+            Netto: {formatCurrency(summary.breakdown?.outgoing?.netTotal || 0)}
           </p>
           <p className="text-xs text-gray-600">
-            Brutto: {formatCurrency(summary.outgoing.grossTotal)}
+            Brutto: {formatCurrency(summary.breakdown?.outgoing?.grossTotal || 0)}
           </p>
         </div>
         <div>
           <p className="text-xs font-semibold text-gray-700 mb-1">Ausgaben (Eingang)</p>
           <p className="text-xs text-gray-600">
-            Anzahl: {formatNumber(summary.incoming.invoiceCount)}
+            Anzahl: {formatNumber(summary.breakdown?.incoming?.count || 0)}
           </p>
           <p className="text-xs text-gray-600">
-            Netto: {formatCurrency(summary.incoming.netTotal)}
+            Netto: {formatCurrency(summary.breakdown?.incoming?.netTotal || 0)}
           </p>
           <p className="text-xs text-gray-600">
-            Brutto: {formatCurrency(summary.incoming.grossTotal)}
+            Brutto: {formatCurrency(summary.breakdown?.incoming?.grossTotal || 0)}
           </p>
         </div>
       </div>
 
       <div className="mt-2 border-t pt-4 flex items-center justify-between">
         <div>
-          <p className="text-xs text-gray-500">Nettogewinn (vereinfacht)</p>
+          <p className="text-xs text-gray-500">Nettogewinn</p>
           <p className="text-lg font-semibold text-gray-800">{formatCurrency(netProfit)}</p>
         </div>
         <div className="text-right">

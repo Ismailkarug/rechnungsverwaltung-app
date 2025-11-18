@@ -15,11 +15,30 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const fromParam = searchParams.get('from');
     const toParam = searchParams.get('to');
+    const platformParam = searchParams.get('platform');
 
     const { from: defFrom, to: defTo } = getDefaultRange();
     const from = fromParam ? new Date(fromParam) : defFrom;
     const to = toParam ? new Date(toParam) : defTo;
 
+    // If a specific platform is requested, return only that platform's data
+    if (platformParam) {
+      const platform = platformParam.toUpperCase() as Platform;
+      const summary = await getPlatformSummary(platform, from, to);
+      
+      return NextResponse.json({
+        platform: summary.platform,
+        dateRange: {
+          from: summary.from.toISOString(),
+          to: summary.to.toISOString(),
+        },
+        summary: summary.summary,
+        breakdown: summary.breakdown,
+        monthlyData: summary.monthlyData,
+      });
+    }
+
+    // Otherwise, return all platforms
     const platforms: Platform[] = ['EBAY', 'AMAZON', 'SHOPIFY'];
 
     const summaries = await Promise.all(
