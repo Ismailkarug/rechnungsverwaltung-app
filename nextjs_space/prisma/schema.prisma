@@ -9,6 +9,22 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
+enum Platform {
+  EBAY
+  AMAZON
+  SHOPIFY
+  OTHER
+  NONE
+}
+
+enum FeeType {
+  PLATFORM_FEE
+  PAYMENT_FEE
+  AD_FEE
+  SHIPPING_COST
+  OTHER
+}
+
 model Rechnung {
   id                  String       @id @default(cuid())
   rechnungsnummer     String       @unique
@@ -23,14 +39,38 @@ model Rechnung {
   status              String?
   verarbeitungsdatum  DateTime?
   typ                 String       @default("Eingang") // "Eingang" (Ausgaben) oder "Ausgang" (Einnahmen)
+  
+  // Platform/Marketplace fields
+  plattform           Platform?    @default(NONE)
+  bestellnummer       String?      // Platform order ID
+  zahlungsmethode     String?      // Payment method (e.g., "eBay", "Amazon Marketplace", "PayPal")
+  referenz            String?      // Raw reference string from PDF
+  
+  // Fee fields (denormalized for quick access)
+  plattformgebuehr    Decimal?     @db.Decimal(10, 2)
+  zahlungsgebuehr     Decimal?     @db.Decimal(10, 2)
+  werbekosten         Decimal?     @db.Decimal(10, 2)
+  versandkosten       Decimal?     @db.Decimal(10, 2)
+  
+  // Refund handling
+  istRueckerstattung  Boolean      @default(false)
+  originalRechnungId  String?
+  originalRechnung    Rechnung?    @relation("RefundOf", fields: [originalRechnungId], references: [id])
+  rueckerstattungen   Rechnung[]   @relation("RefundOf")
+  
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
   extractedInvoiceNum String?
   lastValidated       DateTime?
   validationErrors    String?
   validationStatus    String?      @default("pending")
+  
   audit_logs          audit_logs[]
+  gebuehren           PlatformFee[]
 
+  @@index([plattform, datum])
+  @@index([typ, datum])
+  @@index([bestellnummer])
   @@map("rechnungen")
 }
 
@@ -51,4 +91,31 @@ model audit_logs {
 
   @@index([rechnungId])
   @@index([timestamp])
+}
+
+model PlatformFee {
+  id          String    @id @default(cuid())
+  rechnungId  String
+  rechnung    Rechnung  @relation(fields: [rechnungId], references: [id], onDelete: Cascade)
+  plattform   Platform
+  typ         FeeType
+  beschreibung String?
+  betrag      Decimal   @db.Decimal(10, 2)
+  createdAt   DateTime  @default(now())
+
+  @@index([rechnungId])
+  @@index([plattform])
+}
+
+model AdCost {
+  id          String    @id @default(cuid())
+  plattform   Platform
+  quelle      String    // e.g., "eBay Ads", "Amazon PPC", "Google Ads", "Meta Ads"
+  kampagne    String?
+  bestellnummer String? // optional: link to marketplace order
+  datum       DateTime
+  betrag      Decimal   @db.Decimal(10, 2)
+  createdAt   DateTime  @default(now())
+
+  @@index([plattform, datum])
 }

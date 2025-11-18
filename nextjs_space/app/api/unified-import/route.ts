@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { parse } from 'csv-parse/sync';
 import { uploadFile } from '@/lib/s3';
 import AdmZip from 'adm-zip';
+import { requireAuth } from '@/lib/api-auth';
 
 export const maxDuration = 120;
 export const dynamic = 'force-dynamic';
@@ -262,6 +263,10 @@ async function processPDF(file: Buffer, fileName: string, typ: string = 'Eingang
 }
 
 export async function POST(request: NextRequest) {
+  // Authentifizierung prüfen
+  const { session, error } = await requireAuth();
+  if (error) return error;
+
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;

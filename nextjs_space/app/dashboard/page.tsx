@@ -5,51 +5,78 @@ import { DashboardClient } from './_components/dashboard-client';
 export const dynamic = "force-dynamic";
 
 async function getKPIData() {
-  // Nur Rechnungen mit gültigem Bruttobetrag berücksichtigen
   const whereClause = { betragBrutto: { gt: 0 } };
   
-  const totalRechnungen = await prisma.rechnung.count({
-    where: whereClause
+  // Eingangsrechnungen (Ausgaben)
+  const eingangWhereClause = { ...whereClause, typ: 'Eingang' };
+  const eingangTotal = await prisma.rechnung.count({ where: eingangWhereClause });
+  const eingangSumme = await prisma.rechnung.aggregate({
+    where: eingangWhereClause,
+    _sum: { betragBrutto: true, betragNetto: true, mwstBetrag: true }
+  });
+  const eingangDurchschnitt = await prisma.rechnung.aggregate({
+    where: eingangWhereClause,
+    _avg: { betragBrutto: true }
   });
   
-  const gesamtsumme = await prisma.rechnung.aggregate({
-    where: whereClause,
-    _sum: {
-      betragBrutto: true
-    }
+  // Ausgangsrechnungen (Umsätze)
+  const ausgangWhereClause = { ...whereClause, typ: 'Ausgang' };
+  const ausgangTotal = await prisma.rechnung.count({ where: ausgangWhereClause });
+  const ausgangSumme = await prisma.rechnung.aggregate({
+    where: ausgangWhereClause,
+    _sum: { betragBrutto: true, betragNetto: true, mwstBetrag: true }
+  });
+  const ausgangDurchschnitt = await prisma.rechnung.aggregate({
+    where: ausgangWhereClause,
+    _avg: { betragBrutto: true }
   });
   
-  const durchschnitt = await prisma.rechnung.aggregate({
-    where: whereClause,
-    _avg: {
-      betragBrutto: true
-    }
-  });
-  
+  // Lieferanten (nur Eingang)
   const lieferanten = await prisma.rechnung.findMany({
-    where: whereClause,
+    where: eingangWhereClause,
+    select: { lieferant: true },
+    distinct: ['lieferant']
+  });
+  
+  // Kunden (nur Ausgang)
+  const kunden = await prisma.rechnung.findMany({
+    where: ausgangWhereClause,
     select: { lieferant: true },
     distinct: ['lieferant']
   });
   
   return {
-    totalRechnungen,
-    gesamtsumme: Number(gesamtsumme._sum.betragBrutto) || 0,
-    durchschnitt: Number(durchschnitt._avg.betragBrutto) || 0,
-    lieferantenCount: lieferanten.length
+    eingang: {
+      totalRechnungen: eingangTotal,
+      gesamtsummeBrutto: Number(eingangSumme._sum.betragBrutto) || 0,
+      gesamtsummeNetto: Number(eingangSumme._sum.betragNetto) || 0,
+      gesamtsummeMwst: Number(eingangSumme._sum.mwstBetrag) || 0,
+      durchschnitt: Number(eingangDurchschnitt._avg.betragBrutto) || 0,
+      lieferantenCount: lieferanten.length
+    },
+    ausgang: {
+      totalRechnungen: ausgangTotal,
+      gesamtsummeBrutto: Number(ausgangSumme._sum.betragBrutto) || 0,
+      gesamtsummeNetto: Number(ausgangSumme._sum.betragNetto) || 0,
+      gesamtsummeMwst: Number(ausgangSumme._sum.mwstBetrag) || 0,
+      durchschnitt: Number(ausgangDurchschnitt._avg.betragBrutto) || 0,
+      kundenCount: kunden.length
+    }
   };
 }
 
 async function getChartData() {
   const rechnungen = await prisma.rechnung.findMany({
     where: {
-      betragBrutto: { gt: 0 } // Nur gültige Rechnungen
+      betragBrutto: { gt: 0 }
     },
     select: {
       datum: true,
       betragBrutto: true,
+      betragNetto: true,
       lieferant: true,
-      mwstBetrag: true
+      mwstBetrag: true,
+      typ: true
     },
     orderBy: {
       datum: 'asc'
@@ -59,15 +86,17 @@ async function getChartData() {
   return rechnungen.map(r => ({
     datum: r.datum.toISOString(),
     betragBrutto: Number(r.betragBrutto),
+    betragNetto: Number(r.betragNetto),
     lieferant: r.lieferant,
-    mwstBetrag: Number(r.mwstBetrag) || 0
+    mwstBetrag: Number(r.mwstBetrag) || 0,
+    typ: r.typ || 'Eingang'
   }));
 }
 
 async function getLetzteRechnungen() {
   const rechnungen = await prisma.rechnung.findMany({
     where: {
-      betragBrutto: { gt: 0 } // Nur gültige Rechnungen
+      betragBrutto: { gt: 0 }
     },
     take: 5,
     orderBy: {
@@ -81,7 +110,8 @@ async function getLetzteRechnungen() {
     betragBrutto: Number(r.betragBrutto),
     mwstBetrag: Number(r.mwstBetrag),
     datum: r.datum.toISOString(),
-    verarbeitungsdatum: r.verarbeitungsdatum?.toISOString() || null
+    verarbeitungsdatum: r.verarbeitungsdatum?.toISOString() || null,
+    typ: r.typ || 'Eingang'
   }));
 }
 

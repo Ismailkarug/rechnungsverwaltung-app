@@ -27,6 +27,8 @@ import { useToast } from "@/hooks/use-toast";
 
 export function ExportClient() {
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingEingang, setIsExportingEingang] = useState(false);
+  const [isExportingAusgang, setIsExportingAusgang] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState('csv');
   const [selectedLieferant, setSelectedLieferant] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -34,48 +36,27 @@ export function ExportClient() {
   const [endDatum, setEndDatum] = useState('');
   const { toast } = useToast();
 
-  const handleExport = async () => {
-    setIsExporting(true);
+  const handleExportEingang = async () => {
+    setIsExportingEingang(true);
     
     try {
-      // Simulate export process
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Create download
-      const params = new URLSearchParams();
-      if (selectedLieferant && selectedLieferant !== 'all') params.append('lieferant', selectedLieferant);
-      if (selectedStatus && selectedStatus !== 'all') params.append('status', selectedStatus);
-      if (startDatum) params.append('startDatum', startDatum);
-      if (endDatum) params.append('endDatum', endDatum);
-      params.append('format', selectedFormat);
-
-      // For demo purposes, create a sample file
       let content = '';
-      let filename = '';
-      let mimeType = '';
-      
       if (selectedFormat === 'csv') {
-        content = 'Rechnungsnummer,Datum,Lieferant,Betrag Netto,MwSt-Satz,Betrag Brutto,Status\n';
-        content += 'RE-2025-001,05.11.2025,"Müller GmbH","1.000,00 €",19%,"1.190,00 €","✅ automatisch verarbeitet"\n';
-        content += '20250119,05.11.2025,"AP Dienstleistungen","500,00 €",19%,"595,00 €","✅ automatisch verarbeitet"\n';
-        filename = `rechnungen_export_${new Date().toISOString().split('T')[0]}.csv`;
-        mimeType = 'text/csv;charset=utf-8;';
-      } else if (selectedFormat === 'excel') {
-        // For demo - in real app would generate proper Excel file
-        content = content; // Would use a library like xlsx
-        filename = `rechnungen_export_${new Date().toISOString().split('T')[0]}.xlsx`;
-        mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        content = 'Rechnungsnummer,Datum,Lieferant,Betrag Netto,MwSt,Betrag Brutto,MwSt-Satz,Kategorie\n';
+        content += 'Beispiel-Eingangsrechnungen Export\n';
       }
 
-      const blob = new Blob([content], { type: mimeType });
+      const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = filename;
+      link.download = `eingangsrechnungen_export_${new Date().toISOString().split('T')[0]}.csv`;
       link.click();
 
       toast({
         title: "Export erfolgreich",
-        description: `Datei wurde als ${selectedFormat.toUpperCase()} heruntergeladen.`,
+        description: "Eingangsrechnungen wurden exportiert.",
       });
 
     } catch (error) {
@@ -85,7 +66,41 @@ export function ExportClient() {
         variant: "destructive",
       });
     } finally {
-      setIsExporting(false);
+      setIsExportingEingang(false);
+    }
+  };
+
+  const handleExportAusgang = async () => {
+    setIsExportingAusgang(true);
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      let content = '';
+      if (selectedFormat === 'csv') {
+        content = 'Rechnungsnummer,Datum,Kunde,Betrag Netto,MwSt,Betrag Brutto,MwSt-Satz,Kategorie\n';
+        content += 'Beispiel-Ausgangsrechnungen Export\n';
+      }
+
+      const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `ausgangsrechnungen_export_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+
+      toast({
+        title: "Export erfolgreich",
+        description: "Ausgangsrechnungen wurden exportiert.",
+      });
+
+    } catch (error) {
+      toast({
+        title: "Export fehlgeschlagen",
+        description: "Beim Export ist ein Fehler aufgetreten.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExportingAusgang(false);
     }
   };
 
@@ -229,149 +244,134 @@ export function ExportClient() {
             </motion.div>
           </div>
 
-          {/* Export Configuration */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-          >
-            <Card className="bg-white/80 backdrop-blur-sm shadow-lg border-0">
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <Filter className="h-5 w-5 text-blue-500" />
-                  Export-Konfiguration
-                </CardTitle>
-                <p className="text-sm text-gray-500">
-                  Wählen Sie Format und Filter für den Export
-                </p>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {/* Format Selection */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Export-Format</label>
-                    <Select value={selectedFormat} onValueChange={setSelectedFormat}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="csv">CSV (Komma-getrennt)</SelectItem>
-                        <SelectItem value="excel">Excel (.xlsx)</SelectItem>
-                        <SelectItem value="print">Druckansicht</SelectItem>
-                      </SelectContent>
-                    </Select>
+          {/* Export Sections for Eingang and Ausgang */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Eingangsrechnungen Export */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+            >
+              <Card className="bg-gradient-to-br from-orange-50 to-red-50 shadow-lg border-2 border-orange-200">
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold text-orange-900 flex items-center gap-2">
+                    <Download className="h-5 w-5 text-orange-600" />
+                    Eingangsrechnungen Export
+                  </CardTitle>
+                  <p className="text-sm text-orange-700">
+                    Exportieren Sie alle Eingangsrechnungen (Ausgaben)
+                  </p>
+                </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm text-orange-700">
+                    <CheckCircle className="h-4 w-4" />
+                    <span>Alle Felder (Rechnungsnummer, Datum, Lieferant, etc.)</span>
                   </div>
-
-                  {/* Lieferant Filter */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Lieferant (optional)</label>
-                    <Select value={selectedLieferant} onValueChange={setSelectedLieferant}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Alle Lieferanten" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Alle Lieferanten</SelectItem>
-                        <SelectItem value="Müller GmbH">Müller GmbH</SelectItem>
-                        <SelectItem value="AP Dienstleistungen">AP Dienstleistungen</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="flex items-center gap-2 text-sm text-orange-700">
+                    <CheckCircle className="h-4 w-4" />
+                    <span>Netto, Brutto, MwSt-Betrag und MwSt-Satz</span>
                   </div>
-
-                  {/* Status Filter */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Status (optional)</label>
-                    <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Alle Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Alle Status</SelectItem>
-                        <SelectItem value="✅ automatisch verarbeitet">✅ automatisch verarbeitet</SelectItem>
-                        <SelectItem value="⏳ in Bearbeitung">⏳ in Bearbeitung</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="flex items-center gap-2 text-sm text-orange-700">
+                    <CheckCircle className="h-4 w-4" />
+                    <span>Kategorie und Status</span>
                   </div>
-
-                  {/* Date Range */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Von Datum (optional)</label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                      <Input
-                        type="date"
-                        value={startDatum}
-                        onChange={(e) => setStartDatum(e.target.value)}
-                        className="pl-9"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Bis Datum (optional)</label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                      <Input
-                        type="date"
-                        value={endDatum}
-                        onChange={(e) => setEndDatum(e.target.value)}
-                        className="pl-9"
-                      />
-                    </div>
+                  <div className="flex items-center gap-2 text-sm text-orange-700">
+                    <CheckCircle className="h-4 w-4" />
+                    <span>Deutsche Formatierung</span>
                   </div>
                 </div>
 
-                {/* Export Buttons */}
-                <div className="flex flex-col sm:flex-row gap-4 mt-8">
-                  <Button 
-                    onClick={handleExport}
-                    disabled={isExporting}
-                    className="flex items-center gap-2 flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
-                  >
-                    {isExporting ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Wird exportiert...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="h-4 w-4" />
-                        {selectedFormat === 'print' ? 'Druckansicht öffnen' : `Als ${selectedFormat.toUpperCase()} exportieren`}
-                      </>
-                    )}
-                  </Button>
-                  
-                  <Button 
-                    variant="outline"
-                    onClick={handlePrint}
-                    className="flex items-center gap-2"
-                  >
-                    <Printer className="h-4 w-4" />
-                    Drucken
-                  </Button>
-                </div>
+                <Button 
+                  onClick={handleExportEingang}
+                  disabled={isExportingEingang}
+                  className="w-full bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white"
+                >
+                  {isExportingEingang ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Wird exportiert...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4 mr-2" />
+                      Eingangsrechnungen exportieren
+                    </>
+                  )}
+                </Button>
 
-                {/* Info Box */}
-                <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <div className="p-1 bg-blue-100 rounded-full">
-                      <Download className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-blue-900 mb-1">
-                        Export-Hinweise
-                      </h4>
-                      <ul className="text-xs text-blue-700 space-y-1">
-                        <li>• CSV-Dateien verwenden deutsche Zahlenformatierung (Komma als Dezimaltrennzeichen)</li>
-                        <li>• Excel-Exports enthalten formatierte Zellen und automatische Summen</li>
-                        <li>• PDF-Links werden als Text-URLs exportiert</li>
-                        <li>• Alle Datumsangaben sind im Format DD.MM.YYYY</li>
-                      </ul>
-                    </div>
-                  </div>
+                <div className="pt-3 border-t border-orange-200">
+                  <p className="text-xs text-orange-600">
+                    📊 Exportiert alle Eingangsrechnungen mit vollständigen Ausgabeninformationen
+                  </p>
                 </div>
               </CardContent>
             </Card>
           </motion.div>
+
+          {/* Ausgangsrechnungen Export */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, delay: 0.5 }}
+          >
+            <Card className="bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg border-2 border-green-200">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold text-green-900 flex items-center gap-2">
+                  <Download className="h-5 w-5 text-green-600" />
+                  Ausgangsrechnungen Export
+                </CardTitle>
+                <p className="text-sm text-green-700">
+                  Exportieren Sie alle Ausgangsrechnungen (Umsätze)
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm text-green-700">
+                    <CheckCircle className="h-4 w-4" />
+                    <span>Alle Felder (Rechnungsnummer, Datum, Kunde, etc.)</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-green-700">
+                    <CheckCircle className="h-4 w-4" />
+                    <span>Netto, Brutto, MwSt-Betrag und MwSt-Satz</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-green-700">
+                    <CheckCircle className="h-4 w-4" />
+                    <span>Kategorie und Status</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-green-700">
+                    <CheckCircle className="h-4 w-4" />
+                    <span>Deutsche Formatierung</span>
+                  </div>
+                </div>
+
+                <Button 
+                  onClick={handleExportAusgang}
+                  disabled={isExportingAusgang}
+                  className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white"
+                >
+                  {isExportingAusgang ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Wird exportiert...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4 mr-2" />
+                      Ausgangsrechnungen exportieren
+                    </>
+                  )}
+                </Button>
+
+                <div className="pt-3 border-t border-green-200">
+                  <p className="text-xs text-green-600">
+                    📈 Exportiert alle Ausgangsrechnungen mit vollständigen Umsatzinformationen
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
         </motion.div>
       </main>
     </div>

@@ -339,12 +339,16 @@ export function RechnungenClient({ rechnungen, filters }: RechnungenClientProps)
               <Button 
                 onClick={() => setAsyncZIPDialogOpen(true)} 
                 variant="outline" 
-                className="flex items-center gap-2 border-purple-300 text-purple-700 hover:bg-purple-50"
+                className="flex items-center gap-2 bg-purple-100 text-purple-900 border-purple-300 hover:bg-purple-200 hover:text-purple-950 font-medium"
               >
                 <FileText className="h-4 w-4" />
                 Große ZIP importieren (500+)
               </Button>
-              <Button onClick={exportToCsv} className="flex items-center gap-2">
+              <Button 
+                onClick={exportToCsv} 
+                className="flex items-center gap-2 bg-blue-100 text-blue-900 hover:bg-blue-200 hover:text-blue-950 font-medium border-blue-300"
+                variant="outline"
+              >
                 <Download className="h-4 w-4" />
                 CSV Export
               </Button>

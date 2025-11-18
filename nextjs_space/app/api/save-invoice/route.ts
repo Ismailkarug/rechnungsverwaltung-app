@@ -1,8 +1,14 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
+import { detectPlatform, calculatePlatformFees } from '@/lib/platform-detection';
 
 export async function POST(request: NextRequest) {
+  // Authentifizierung prüfen
+  const { session, error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const { invoices } = body;
@@ -19,6 +25,19 @@ export async function POST(request: NextRequest) {
 
     for (const invoice of invoices) {
       try {
+        // Detect platform based on extracted data
+        const platform = detectPlatform({
+          zahlungsmethode: invoice.zahlungsmethode,
+          bestellnummer: invoice.bestellnummer,
+          referenz: invoice.referenz,
+          lieferant: invoice.lieferant,
+        });
+
+        // Calculate estimated fees (only for sales invoices)
+        const fees = invoice.typ === 'Ausgang' 
+          ? calculatePlatformFees(platform, Number(invoice.betragBrutto || 0))
+          : { platformFee: 0, paymentFee: 0, estimatedTotal: 0 };
+
         const rechnung = await prisma.rechnung.create({
           data: {
             rechnungsnummer: invoice.rechnungsnummer,
@@ -31,7 +50,18 @@ export async function POST(request: NextRequest) {
             leistungszeitraum: invoice.leistungszeitraum,
             dateipfad: invoice.cloudStoragePath,
             status: invoice.status || 'Unbezahlt',
-            verarbeitungsdatum: new Date()
+            verarbeitungsdatum: new Date(),
+            typ: invoice.typ || 'Eingang',
+            
+            // Platform fields
+            plattform: platform,
+            bestellnummer: invoice.bestellnummer,
+            zahlungsmethode: invoice.zahlungsmethode,
+            referenz: invoice.referenz,
+            
+            // Fee fields (estimated)
+            plattformgebuehr: fees.platformFee,
+            zahlungsgebuehr: fees.paymentFee,
           }
         });
 

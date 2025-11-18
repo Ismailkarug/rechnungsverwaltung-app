@@ -1,10 +1,15 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { downloadFile } from '@/lib/s3';
+import { requireAuth } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  // Authentifizierung prüfen
+  const { session, error } = await requireAuth();
+  if (error) return error;
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const key = searchParams.get('key');

@@ -31,6 +31,7 @@ interface StatisticDataItem {
   mwstBetrag: number;
   lieferant: string;
   mwstSatz: string;
+  typ: string;
   monat: string;
   monatKurz: string;
   quartal: string;
@@ -46,6 +47,7 @@ const COLORS = ['#60B5FF', '#FF9149', '#FF9898', '#FF90BB', '#FF6363', '#80D8C3'
 export function StatistikenClient({ data }: StatistikenClientProps) {
   const [zeitraum, setZeitraum] = useState('monat');
   const [selectedYear, setSelectedYear] = useState('alle');
+  const [selectedTyp, setSelectedTyp] = useState('alle');
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('de-DE', {
@@ -54,11 +56,17 @@ export function StatistikenClient({ data }: StatistikenClientProps) {
     }).format(value);
   };
 
-  // Filter data by selected year
+  // Filter data by selected year and type
   const filteredData = useMemo(() => {
-    if (selectedYear === 'alle') return data;
-    return data.filter(item => item.jahr === selectedYear);
-  }, [data, selectedYear]);
+    let filtered = data;
+    if (selectedYear !== 'alle') {
+      filtered = filtered.filter(item => item.jahr === selectedYear);
+    }
+    if (selectedTyp !== 'alle') {
+      filtered = filtered.filter(item => item.typ === selectedTyp);
+    }
+    return filtered;
+  }, [data, selectedYear, selectedTyp]);
 
   // Available years
   const availableYears = useMemo(() => {
@@ -186,6 +194,17 @@ export function StatistikenClient({ data }: StatistikenClientProps) {
               </p>
             </div>
             <div className="flex items-center gap-4">
+              <Select value={selectedTyp} onValueChange={setSelectedTyp}>
+                <SelectTrigger className="w-44">
+                  <SelectValue placeholder="Rechnungstyp" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="alle">Alle Rechnungen</SelectItem>
+                  <SelectItem value="Eingang">Eingangsrechnungen</SelectItem>
+                  <SelectItem value="Ausgang">Ausgangsrechnungen</SelectItem>
+                </SelectContent>
+              </Select>
+
               <Select value={selectedYear} onValueChange={setSelectedYear}>
                 <SelectTrigger className="w-32">
                   <SelectValue placeholder="Jahr" />
@@ -223,16 +242,24 @@ export function StatistikenClient({ data }: StatistikenClientProps) {
               <Card className="bg-white/80 backdrop-blur-sm shadow-lg border-0">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-gray-600">
-                    Gesamtumsatz
+                    {selectedTyp === 'Eingang' ? 'Gesamtausgaben' : 
+                     selectedTyp === 'Ausgang' ? 'Gesamtumsatz' : 
+                     'Gesamtbetrag'}
                   </CardTitle>
-                  <Euro className="h-4 w-4 text-green-500" />
+                  <Euro className={`h-4 w-4 ${
+                    selectedTyp === 'Eingang' ? 'text-orange-500' :
+                    selectedTyp === 'Ausgang' ? 'text-green-500' :
+                    'text-blue-500'
+                  }`} />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-gray-900">
                     {formatCurrency(gesamtStatistiken.gesamtBrutto)}
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    {selectedYear === 'alle' ? 'Alle Jahre' : `Jahr ${selectedYear}`}
+                    {selectedTyp === 'Eingang' ? 'Eingangsrechnungen' :
+                     selectedTyp === 'Ausgang' ? 'Ausgangsrechnungen' :
+                     'Alle Rechnungen'} • {selectedYear === 'alle' ? 'Alle Jahre' : `Jahr ${selectedYear}`}
                   </p>
                 </CardContent>
               </Card>
@@ -323,7 +350,7 @@ export function StatistikenClient({ data }: StatistikenClientProps) {
                 <CardHeader>
                   <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                     <Activity className="h-5 w-5 text-blue-500" />
-                    Ausgaben pro {zeitraum === 'monat' ? 'Monat' : zeitraum === 'quartal' ? 'Quartal' : 'Jahr'}
+                    {selectedTyp === 'Ausgang' ? 'Umsätze' : selectedTyp === 'Eingang' ? 'Ausgaben' : 'Rechnungen'} pro {zeitraum === 'monat' ? 'Monat' : zeitraum === 'quartal' ? 'Quartal' : 'Jahr'}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -381,8 +408,10 @@ export function StatistikenClient({ data }: StatistikenClientProps) {
               <Card className="bg-white/80 backdrop-blur-sm shadow-lg border-0">
                 <CardHeader>
                   <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <Building2 className="h-5 w-5 text-orange-500" />
-                    Top 5 Lieferanten
+                    <Building2 className={`h-5 w-5 ${
+                      selectedTyp === 'Ausgang' ? 'text-green-500' : 'text-orange-500'
+                    }`} />
+                    {selectedTyp === 'Ausgang' ? 'Top 5 Kunden' : 'Top 5 Lieferanten'}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -492,8 +521,10 @@ export function StatistikenClient({ data }: StatistikenClientProps) {
               <Card className="bg-white/80 backdrop-blur-sm shadow-lg border-0">
                 <CardHeader>
                   <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-green-500" />
-                    Durchschnitt pro Lieferant
+                    <Calendar className={`h-5 w-5 ${
+                      selectedTyp === 'Ausgang' ? 'text-green-500' : 'text-orange-500'
+                    }`} />
+                    Durchschnitt pro {selectedTyp === 'Ausgang' ? 'Kunde' : 'Lieferant'}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>

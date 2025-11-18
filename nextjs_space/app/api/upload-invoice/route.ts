@@ -2,8 +2,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadFile } from '@/lib/s3';
 import { prisma } from '@/lib/db';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function POST(request: NextRequest) {
+  // Authentifizierung prüfen
+  const { session, error } = await requireAuth();
+  if (error) return error;
+
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;

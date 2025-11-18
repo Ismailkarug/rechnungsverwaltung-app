@@ -5,6 +5,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "sonner";
+import SessionWrapper from "@/components/session-wrapper";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -32,17 +33,18 @@ export default function RootLayout({
   return (
     <html lang="de" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          forcedTheme="light"
-          enableSystem={false}
-          disableTransitionOnChange
-        >
-          {children}
-          <Toaster />
-          <SonnerToaster position="top-right" />
-        </ThemeProvider>
+        <SessionWrapper>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            enableSystem={false}
+            disableTransitionOnChange
+          >
+            {children}
+            <Toaster />
+            <SonnerToaster position="top-right" />
+          </ThemeProvider>
+        </SessionWrapper>
       </body>
     </html>
   );

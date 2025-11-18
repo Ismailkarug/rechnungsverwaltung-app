@@ -69,7 +69,7 @@ export function VerkaufsrechnungenClient({ rechnungen, filters }: Verkaufsrechnu
   const [maxBetrag, setMaxBetrag] = useState('');
   const [startDatum, setStartDatum] = useState('');
   const [endDatum, setEndDatum] = useState('');
-  const [sortField, setSortField] = useState<SortField>('datum');
+  const [sortField, setSortField] = useState<SortField>('rechnungsnummer');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkUpdating, setBulkUpdating] = useState(false);
@@ -136,8 +136,9 @@ export function VerkaufsrechnungenClient({ rechnungen, filters }: Verkaufsrechnu
           bVal = b.betragBrutto;
           break;
         case 'rechnungsnummer':
-          aVal = a.rechnungsnummer.toLowerCase();
-          bVal = b.rechnungsnummer.toLowerCase();
+          // Parse as numbers for proper numerical sorting
+          aVal = parseInt(a.rechnungsnummer) || 0;
+          bVal = parseInt(b.rechnungsnummer) || 0;
           break;
         default:
           return 0;
@@ -340,12 +341,16 @@ export function VerkaufsrechnungenClient({ rechnungen, filters }: Verkaufsrechnu
               <Button 
                 onClick={() => setAsyncZIPDialogOpen(true)} 
                 variant="outline" 
-                className="flex items-center gap-2 border-purple-300 text-purple-700 hover:bg-purple-50"
+                className="flex items-center gap-2 bg-purple-100 text-purple-900 border-purple-300 hover:bg-purple-200 hover:text-purple-950 font-medium"
               >
                 <FileText className="h-4 w-4" />
                 Große ZIP importieren (500+)
               </Button>
-              <Button onClick={exportToCsv} className="flex items-center gap-2">
+              <Button 
+                onClick={exportToCsv} 
+                className="flex items-center gap-2 bg-blue-100 text-blue-900 hover:bg-blue-200 hover:text-blue-950 font-medium border-blue-300"
+                variant="outline"
+              >
                 <Download className="h-4 w-4" />
                 CSV Export
               </Button>

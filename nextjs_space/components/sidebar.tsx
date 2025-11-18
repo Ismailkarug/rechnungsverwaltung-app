@@ -5,14 +5,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { 
   BarChart3, 
   FileText, 
   TrendingUp, 
   Download,
   Home,
-  Receipt
+  Receipt,
+  LogOut,
+  Store,
+  ChevronRight,
+  ChevronDown
 } from "lucide-react";
+import { signOut } from "next-auth/react";
+import { useState } from "react";
 
 const navigation = [
   {
@@ -38,6 +45,39 @@ const navigation = [
     badgeColor: "green"
   },
   {
+    name: "Vertriebskanäle",
+    href: "/vertriebskanaele",
+    icon: Store,
+    description: "Marktplatz-Übersicht",
+    children: [
+      {
+        name: "Übersicht",
+        href: "/vertriebskanaele",
+        description: "Alle Kanäle auf einen Blick"
+      },
+      {
+        name: "Import",
+        href: "/vertriebskanaele/import",
+        description: "Rechnungen importieren"
+      },
+      {
+        name: "eBay",
+        href: "/vertriebskanaele/ebay",
+        description: "eBay Umsatz & Gebühren"
+      },
+      {
+        name: "Amazon",
+        href: "/vertriebskanaele/amazon",
+        description: "Amazon Umsatz & Gebühren"
+      },
+      {
+        name: "Shopify",
+        href: "/vertriebskanaele/shopify",
+        description: "Shopify Umsatz & Gebühren"
+      }
+    ]
+  },
+  {
     name: "Statistiken",
     href: "/statistiken",
     icon: TrendingUp,
@@ -53,6 +93,15 @@ const navigation = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+
+  const toggleExpanded = (itemName: string) => {
+    setExpandedItems(prev => 
+      prev.includes(itemName) 
+        ? prev.filter(name => name !== itemName)
+        : [...prev, itemName]
+    );
+  };
 
   return (
     <div className="fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 shadow-lg">
@@ -73,14 +122,79 @@ export function Sidebar() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-4 py-6">
+        <nav className="flex-1 px-4 py-6 overflow-y-auto">
           <div className="space-y-2">
             {navigation.map((item) => {
+              // Check if this is a parent item with children
+              if ('children' in item && item.children) {
+                const isExpanded = expandedItems.includes(item.name);
+                const hasActiveChild = item.children.some(child => pathname === child.href);
+
+                return (
+                  <div key={item.name}>
+                    <button
+                      onClick={() => toggleExpanded(item.name)}
+                      className={cn(
+                        "group flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-gray-50 w-full",
+                        hasActiveChild
+                          ? "bg-blue-50 text-blue-700 border border-blue-200 shadow-sm"
+                          : "text-gray-700 hover:text-gray-900"
+                      )}
+                    >
+                      <item.icon 
+                        className={cn(
+                          "h-5 w-5 transition-colors",
+                          hasActiveChild ? "text-blue-600" : "text-gray-400 group-hover:text-gray-600"
+                        )} 
+                      />
+                      <div className="flex-1 min-w-0 text-left">
+                        <div className="font-medium">{item.name}</div>
+                        <div className={cn(
+                          "text-xs",
+                          hasActiveChild ? "text-blue-600" : "text-gray-500"
+                        )}>
+                          {item.description}
+                        </div>
+                      </div>
+                      {isExpanded ? (
+                        <ChevronDown className="h-4 w-4 text-gray-400" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                      )}
+                    </button>
+
+                    {/* Submenu */}
+                    {isExpanded && (
+                      <div className="ml-8 mt-1 space-y-1">
+                        {item.children.map((child) => {
+                          const isChildActive = pathname === child.href;
+                          return (
+                            <Link
+                              key={child.name}
+                              href={child.href}
+                              className={cn(
+                                "block px-3 py-2 rounded-lg text-xs transition-all duration-200",
+                                isChildActive
+                                  ? "bg-blue-100 text-blue-700 font-medium"
+                                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                              )}
+                            >
+                              {child.name}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              // Regular navigation item
               const isActive = pathname === item.href;
               return (
                 <Link
                   key={item.name}
-                  href={item.href}
+                  href={item.href || '#'}
                   className={cn(
                     "group flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-gray-50",
                     isActive 
