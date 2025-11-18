@@ -25,27 +25,92 @@ async function extractPDFData(pdfBuffer: Buffer, fileName: string): Promise<any>
     // Upload to S3 first
     const cloudStoragePath = await uploadFile(pdfBuffer, s3Key);
 
-    // Call extraction API
-    const formData = new FormData();
-    const blob = new Blob([pdfBuffer], { type: 'application/pdf' });
-    formData.append('file', blob, fileName);
+    // Convert to base64 for LLM API
+    const base64String = pdfBuffer.toString('base64');
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
-                    process.env.NEXTAUTH_URL || 
-                    'http://localhost:3000';
+    // Call LLM API directly to extract invoice data
+    const messages = [
+      {
+        role: "user",
+        content: [
+          {
+            type: "file",
+            file: {
+              filename: fileName,
+              file_data: `data:application/pdf;base64,${base64String}`
+            }
+          },
+          {
+            type: "text",
+            text: `Bitte extrahiere die folgenden Informationen aus dieser Rechnung und gib sie als JSON zurück:
 
-    const response = await fetch(`${baseUrl}/api/extract-invoice-data`, {
+{
+  "rechnungsnummer": "Rechnungsnummer (String)",
+  "datum": "Rechnungsdatum im Format YYYY-MM-DD",
+  "lieferant": "Name des Lieferanten/Ausstellers",
+  "betragNetto": "Nettobetrag als Dezimalzahl",
+  "mwstSatz": "MwSt-Satz (z.B. '19%' oder '7%')",
+  "mwstBetrag": "MwSt-Betrag als Dezimalzahl",
+  "betragBrutto": "Bruttobetrag als Dezimalzahl",
+  "leistungszeitraum": "Leistungszeitraum falls vorhanden",
+  "zahlungsmethode": "Zahlungsmethode falls sichtbar (z.B. 'eBay', 'Amazon', 'PayPal')",
+  "bestellnummer": "Bestellnummer oder Order-ID",
+  "referenz": "Referenznummer falls vorhanden"
+}
+
+WICHTIG: Verwende Punkt (.) als Dezimaltrennzeichen. Falls eine Information nicht vorhanden ist, verwende null.`
+          }
+        ]
+      }
+    ];
+
+    console.log(`[Platform Import] Extracting data from: ${fileName}`);
+    const llmResponse = await fetch('https://apps.abacus.ai/v1/chat/completions', {
       method: 'POST',
-      body: formData,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.ABACUSAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4.1-mini',
+        messages: messages,
+        response_format: { type: "json_object" },
+        max_tokens: 1000
+      })
     });
 
-    if (!response.ok) {
-      throw new Error('PDF extraction failed');
+    if (!llmResponse.ok) {
+      const errorText = await llmResponse.text();
+      console.error(`[Platform Import] LLM API error:`, llmResponse.status, errorText);
+      throw new Error(`LLM API Fehler: ${llmResponse.status}`);
     }
 
-    const result = await response.json();
+    const llmData = await llmResponse.json();
+    console.log(`[Platform Import] LLM response:`, JSON.stringify(llmData, null, 2));
+    
+    if (!llmData.choices || !llmData.choices[0] || !llmData.choices[0].message) {
+      throw new Error('Ungültige LLM-Antwort');
+    }
+    
+    const extractedData = JSON.parse(llmData.choices[0].message.content);
+    console.log(`[Platform Import] Extracted data:`, extractedData);
+
     return {
-      ...result,
+      rechnungsnummer: extractedData.rechnungsnummer || '',
+      datum: extractedData.datum || new Date().toISOString().split('T')[0],
+      lieferant: extractedData.lieferant || '',
+      betrag: extractedData.betragBrutto || 0,
+      betragBrutto: extractedData.betragBrutto || 0,
+      betragNetto: extractedData.betragNetto || 0,
+      mwst: extractedData.mwstBetrag || 0,
+      mwstBetrag: extractedData.mwstBetrag || 0,
+      mwst_satz: extractedData.mwstSatz || '19%',
+      mwstSatz: extractedData.mwstSatz || '19%',
+      leistungszeitraum: extractedData.leistungszeitraum || null,
+      zahlungsmethode: extractedData.zahlungsmethode || null,
+      bestellnummer: extractedData.bestellnummer || null,
+      referenz: extractedData.referenz || null,
+      dateipfad: cloudStoragePath,
       cloud_storage_path: cloudStoragePath,
     };
   } catch (error) {
