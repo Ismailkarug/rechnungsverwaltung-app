@@ -79,7 +79,16 @@ export default function PlatformImportClient() {
       }
 
       if (result.summary.failed > 0) {
-        toast.warning(`${result.summary.failed} Rechnungen konnten nicht importiert werden.`);
+        // Show detailed error information
+        const failedInvoices = result.results.filter((r: any) => !r.success && r.error !== 'Rechnung bereits vorhanden');
+        const errorMessages = failedInvoices.map((r: any) => `${r.fileName}: ${r.error}`).join('\n');
+        
+        toast.error(
+          `${result.summary.failed} Rechnungen konnten nicht importiert werden:\n${errorMessages.substring(0, 200)}${errorMessages.length > 200 ? '...' : ''}`,
+          { duration: 10000 }
+        );
+        
+        console.error('Failed invoices:', failedInvoices);
       }
 
       // Reset form
