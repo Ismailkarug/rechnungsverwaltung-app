@@ -50,17 +50,8 @@ export default async function PlatformPage({ params, searchParams }: PageProps) 
   const details = await fetchDetails(platform, searchParams.from, searchParams.to);
   const label = PLATFORM_LABEL[platform];
 
-  const netProfit =
-    details.summary.outgoing.netTotal -
-    details.summary.outgoing.vatTotal -
-    details.summary.incoming.netTotal -
-    details.feeSummary.totalFees -
-    details.feeSummary.adCostsTotal;
-
-  const margin =
-    details.summary.outgoing.netTotal > 0
-      ? (netProfit / details.summary.outgoing.netTotal) * 100
-      : 0;
+  const netProfit = details.summary?.summary?.netProfit || 0;
+  const margin = details.summary?.summary?.profitMargin || 0;
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -80,25 +71,25 @@ export default async function PlatformPage({ params, searchParams }: PageProps) 
           <div className="rounded-xl border bg-white p-4">
             <p className="text-xs text-gray-500">Bruttobetrag gesamt</p>
             <p className="text-lg font-semibold text-gray-800">
-              {formatCurrency(details.summary.grossTotal)}
+              {formatCurrency(details.summary?.summary?.grossTotal || 0)}
             </p>
           </div>
           <div className="rounded-xl border bg-white p-4">
             <p className="text-xs text-gray-500">Nettobetrag gesamt</p>
             <p className="text-lg font-semibold text-gray-800">
-              {formatCurrency(details.summary.netTotal)}
+              {formatCurrency(details.summary?.summary?.netTotal || 0)}
             </p>
           </div>
           <div className="rounded-xl border bg-white p-4">
             <p className="text-xs text-gray-500">MwSt gesamt</p>
             <p className="text-lg font-semibold text-gray-800">
-              {formatCurrency(details.summary.vatTotal)}
+              {formatCurrency(details.summary?.summary?.vatTotal || 0)}
             </p>
           </div>
           <div className="rounded-xl border bg-white p-4">
             <p className="text-xs text-gray-500">Rechnungen</p>
             <p className="text-lg font-semibold text-gray-800">
-              {formatNumber(details.summary.invoiceCount)}
+              {formatNumber(details.summary?.summary?.orderCount || 0)}
             </p>
           </div>
         </div>
@@ -121,43 +112,31 @@ export default async function PlatformPage({ params, searchParams }: PageProps) 
               <li>
                 Plattformgebühren:{' '}
                 <span className="font-medium">
-                  {formatCurrency(details.feeSummary.platformFees)}
+                  {formatCurrency(details.feeSummary?.platformFees || 0)}
                 </span>
               </li>
               <li>
                 Zahlungsgebühren:{' '}
                 <span className="font-medium">
-                  {formatCurrency(details.feeSummary.paymentFees)}
+                  {formatCurrency(details.feeSummary?.paymentFees || 0)}
                 </span>
               </li>
               <li>
-                Werbegebühren (pro Bestellung):{' '}
+                Werbekosten:{' '}
                 <span className="font-medium">
-                  {formatCurrency(details.feeSummary.adFees)}
+                  {formatCurrency(details.feeSummary?.adCosts || 0)}
                 </span>
               </li>
               <li>
                 Versandkosten:{' '}
                 <span className="font-medium">
-                  {formatCurrency(details.feeSummary.shippingCosts)}
-                </span>
-              </li>
-              <li>
-                Sonstige Gebühren:{' '}
-                <span className="font-medium">
-                  {formatCurrency(details.feeSummary.otherFees)}
+                  {formatCurrency(details.feeSummary?.shippingCosts || 0)}
                 </span>
               </li>
               <li className="mt-1 pt-1 border-t">
                 Gebühren gesamt:{' '}
                 <span className="font-semibold">
-                  {formatCurrency(details.feeSummary.totalFees)}
-                </span>
-              </li>
-              <li>
-                Werbekosten (Kampagnen):{' '}
-                <span className="font-semibold">
-                  {formatCurrency(details.feeSummary.adCostsTotal)}
+                  {formatCurrency(details.feeSummary?.total || 0)}
                 </span>
               </li>
             </ul>
