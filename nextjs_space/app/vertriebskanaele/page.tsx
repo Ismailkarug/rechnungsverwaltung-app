@@ -1,33 +1,11 @@
 
 import { Platform } from '@prisma/client';
-import { PlatformSummaryResponse, PlatformSummary } from '@/src/types/platformSummary';
 import Link from 'next/link';
 import { Sidebar } from '@/components/sidebar';
+import { getPlatformSummary, PlatformSummary } from '@/src/services/reports_platformSummary';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-
-async function fetchPlatformSummaries(): Promise<PlatformSummaryResponse | null> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
-    const res = await fetch(`${baseUrl}/api/platform-summary`, {
-      cache: 'no-store',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!res.ok) {
-      console.error('Failed to fetch platform summaries:', res.status, res.statusText);
-      return null;
-    }
-    
-    return res.json();
-  } catch (error) {
-    console.error('Error fetching platform summaries:', error);
-    return null;
-  }
-}
 
 const PLATFORM_LABEL: Record<Platform, string> = {
   EBAY: 'eBay',
@@ -67,8 +45,8 @@ function PlatformCard({ summary }: { summary: PlatformSummary }) {
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">{label} Finanzen</h2>
         <span className="text-xs text-gray-500 dark:text-gray-400">
-          {new Date(summary.from).toLocaleDateString('de-DE')} –{' '}
-          {new Date(summary.to).toLocaleDateString('de-DE')}
+          {summary.from.toLocaleDateString('de-DE')} –{' '}
+          {summary.to.toLocaleDateString('de-DE')}
         </span>
       </div>
 
@@ -182,10 +160,27 @@ function ErrorState({ error }: { error: string }) {
 }
 
 export default async function VertriebskanaelePage() {
-  const data = await fetchPlatformSummaries();
+  try {
+    // Default date range: last 12 months
+    const to = new Date();
+    const from = new Date();
+    from.setMonth(from.getMonth() - 12);
 
-  // Error handling
-  if (!data) {
+    // Fetch summaries for all platforms
+    const platforms: Platform[] = ['EBAY', 'AMAZON', 'SHOPIFY'];
+    const summaries = await Promise.all(
+      platforms.map(async (platform) => {
+        try {
+          return await getPlatformSummary(platform, from, to);
+        } catch (error) {
+          console.error(`Error fetching summary for ${platform}:`, error);
+          return null;
+        }
+      })
+    );
+
+    const relevant = summaries.filter((s): s is PlatformSummary => s !== null);
+
     return (
       <div className="flex min-h-screen">
         <Sidebar />
@@ -194,40 +189,37 @@ export default async function VertriebskanaelePage() {
             <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-100">
               Vertriebskanäle Finanzübersicht
             </h1>
-            <ErrorState error="API-Aufruf fehlgeschlagen. Bitte überprüfen Sie die Netzwerkverbindung." />
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              Detaillierte Finanzauswertung für eBay, Amazon und Shopify inkl. Gebühren und Werbekosten
+            </p>
+
+            {relevant.length === 0 ? (
+              <EmptyState />
+            ) : (
+              <div className="grid gap-6 md:grid-cols-3">
+                {relevant.map((summary) => (
+                  <PlatformCard key={summary.platform} summary={summary} />
+                ))}
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+    );
+  } catch (error) {
+    console.error('Error in VertriebskanaelePage:', error);
+    return (
+      <div className="flex min-h-screen">
+        <Sidebar />
+        <main className="flex-1 ml-64 bg-slate-50 dark:bg-gray-900">
+          <div className="mx-auto max-w-6xl px-4 py-8">
+            <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-100">
+              Vertriebskanäle Finanzübersicht
+            </h1>
+            <ErrorState error="Fehler beim Laden der Plattformdaten. Bitte versuchen Sie es erneut." />
           </div>
         </main>
       </div>
     );
   }
-
-  const relevant = data.summaries?.filter((s) =>
-    ['EBAY', 'AMAZON', 'SHOPIFY'].includes(s.platform)
-  ) as PlatformSummary[] || [];
-
-  return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <main className="flex-1 ml-64 bg-slate-50 dark:bg-gray-900">
-        <div className="mx-auto max-w-6xl px-4 py-8">
-          <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-100">
-            Vertriebskanäle Finanzübersicht
-          </h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-            Detaillierte Finanzauswertung für eBay, Amazon und Shopify inkl. Gebühren und Werbekosten
-          </p>
-
-          {relevant.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <div className="grid gap-6 md:grid-cols-3">
-              {relevant.map((summary) => (
-                <PlatformCard key={summary.platform} summary={summary} />
-              ))}
-            </div>
-          )}
-        </div>
-      </main>
-    </div>
-  );
 }
