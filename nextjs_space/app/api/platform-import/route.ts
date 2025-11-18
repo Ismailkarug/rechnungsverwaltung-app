@@ -15,6 +15,28 @@ interface ImportResult {
   rechnungsnummer?: string;
 }
 
+// Helper function to clean LLM response from markdown code blocks
+function cleanLLMResponse(content: string): string {
+  try {
+    // Remove markdown code blocks (```json and ```)
+    let cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+    
+    // Remove leading/trailing whitespace
+    cleaned = cleaned.trim();
+    
+    // If response contains explanation text, extract only the JSON object
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      cleaned = jsonMatch[0];
+    }
+    
+    return cleaned;
+  } catch (error) {
+    console.error('[Clean LLM] Error cleaning response:', error);
+    return content; // Return original if cleaning fails
+  }
+}
+
 // Helper function to extract data from PDF using AI
 async function extractPDFData(pdfBuffer: Buffer, fileName: string): Promise<any> {
   try {
@@ -58,7 +80,11 @@ async function extractPDFData(pdfBuffer: Buffer, fileName: string): Promise<any>
   "referenz": "Referenznummer falls vorhanden"
 }
 
-WICHTIG: Verwende Punkt (.) als Dezimaltrennzeichen. Falls eine Information nicht vorhanden ist, verwende null.`
+WICHTIG: 
+- Verwende Punkt (.) als Dezimaltrennzeichen
+- Falls eine Information nicht vorhanden ist, verwende null
+- Return ONLY the JSON object, without markdown code blocks, without any explanation
+- Do not wrap the response in \`\`\`json or \`\`\` markers`
           }
         ]
       }
@@ -86,14 +112,29 @@ WICHTIG: Verwende Punkt (.) als Dezimaltrennzeichen. Falls eine Information nich
     }
 
     const llmData = await llmResponse.json();
-    console.log(`[Platform Import] LLM response:`, JSON.stringify(llmData, null, 2));
     
     if (!llmData.choices || !llmData.choices[0] || !llmData.choices[0].message) {
+      console.error(`[Platform Import] Invalid LLM response structure:`, llmData);
       throw new Error('Ungültige LLM-Antwort');
     }
-    
-    const extractedData = JSON.parse(llmData.choices[0].message.content);
-    console.log(`[Platform Import] Extracted data:`, extractedData);
+
+    const rawContent = llmData.choices[0].message.content;
+    console.log(`[Platform Import] Raw LLM response for ${fileName}:`, rawContent);
+
+    // Clean the LLM response to remove markdown code blocks
+    const cleanedContent = cleanLLMResponse(rawContent);
+    console.log(`[Platform Import] Cleaned content for ${fileName}:`, cleanedContent);
+
+    let extractedData;
+    try {
+      extractedData = JSON.parse(cleanedContent);
+      console.log(`[Platform Import] Successfully parsed data for ${fileName}:`, extractedData);
+    } catch (parseError) {
+      console.error(`[Platform Import] JSON parsing failed for ${fileName}:`, parseError);
+      console.error(`[Platform Import] Raw content:`, rawContent);
+      console.error(`[Platform Import] Cleaned content:`, cleanedContent);
+      throw new Error(`JSON-Parsing fehlgeschlagen: ${parseError instanceof Error ? parseError.message : 'Unbekannter Fehler'}`);
+    }
 
     return {
       rechnungsnummer: extractedData.rechnungsnummer || '',
