@@ -20,8 +20,15 @@ async function getAllRechnungen() {
     betragNetto: Number(r.betragNetto),
     betragBrutto: Number(r.betragBrutto),
     mwstBetrag: Number(r.mwstBetrag) || null,
+    plattformgebuehr: r.plattformgebuehr ? Number(r.plattformgebuehr) : null,
+    zahlungsgebuehr: r.zahlungsgebuehr ? Number(r.zahlungsgebuehr) : null,
+    werbekosten: r.werbekosten ? Number(r.werbekosten) : null,
+    versandkosten: r.versandkosten ? Number(r.versandkosten) : null,
     datum: r.datum.toISOString(),
-    verarbeitungsdatum: r.verarbeitungsdatum?.toISOString() || null
+    verarbeitungsdatum: r.verarbeitungsdatum?.toISOString() || null,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+    lastValidated: r.lastValidated?.toISOString() || null
   }));
 }
 

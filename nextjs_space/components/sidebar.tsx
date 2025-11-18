@@ -56,6 +56,11 @@ const navigation = [
         description: "Alle Kanäle auf einen Blick"
       },
       {
+        name: "Import",
+        href: "/vertriebskanaele/import",
+        description: "Rechnungen importieren"
+      },
+      {
         name: "eBay",
         href: "/vertriebskanaele/ebay",
         description: "eBay Umsatz & Gebühren"

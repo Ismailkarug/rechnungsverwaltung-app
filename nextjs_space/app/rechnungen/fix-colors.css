@@ -1,220 +1,73 @@
-/* CRITICAL: Nuclear option - force ALL text to be dark at the highest level */
-*:not(.lucide):not(svg):not(path):not(line):not(circle):not(rect):not(polygon):not(polyline):not(ellipse):not(button[class*="bg-"]) {
+
+/* CRITICAL: ABSOLUTE MAXIMUM PRIORITY - FORCE ALL TEXT TO BE DARK */
+html,
+html *,
+body,
+body *,
+*,
+[style],
+[style*="color"],
+[class],
+table,
+table *,
+tr,
+tr *,
+td,
+td *,
+th,
+th *,
+div,
+div *,
+span,
+span *,
+p,
+p *,
+a,
+a *,
+button:not([class*="bg-blue"]):not([class*="bg-red"]):not([class*="bg-green"]):not([class*="bg-yellow"]):not([class*="bg-indigo"]),
+button:not([class*="bg-blue"]):not([class*="bg-red"]):not([class*="bg-green"]):not([class*="bg-yellow"]):not([class*="bg-indigo"]) * {
   color: #111827 !important;
   -webkit-text-fill-color: #111827 !important;
-  fill: currentColor !important;
 }
 
-/* Override specific exceptions - icons and SVG elements */
-.lucide, svg, path, line, circle, rect, polygon, polyline, ellipse {
+/* Exception for SVG elements */
+svg,
+svg *,
+.lucide,
+.lucide * {
   color: currentColor !important;
   -webkit-text-fill-color: currentColor !important;
 }
 
-/* Force button text to be visible */
-button:not([class*="bg-"]):not([class*="Button"]) {
-  color: #111827 !important;
-}
-
-/* Force visible text for animated table elements */
-table [style*="opacity"],
-table [style*="color"],
-table [data-motion],
-table [data-motion-id],
-table [data-projection-id],
-table tbody tr[style],
-table tbody tr[style] *,
-table tbody tr td[style],
-table tbody tr td[style] * {
-  color: #111827 !important;
-  -webkit-text-fill-color: #111827 !important;
-}
-
-/* CRITICAL: Force all text in main content to be dark with absolute priority */
-html body main *:not(.lucide):not(svg):not(path):not(line):not(circle):not(rect):not(polygon):not(polyline):not(ellipse),
-html body div[class*="mx-auto"] *:not(.lucide):not(svg):not(path):not(line):not(circle):not(rect):not(polygon):not(polyline):not(ellipse) {
-  color: #111827 !important;
-  -webkit-text-fill-color: #111827 !important;
-}
-
-/* CRITICAL: Force all text in table to be dark - override everything with maximum specificity */
-html body main table,
-html body main table *:not(.lucide):not(svg):not(path):not(line):not(circle):not(rect):not(polygon):not(polyline):not(ellipse),
-html body div table,
-html body div table *:not(.lucide):not(svg):not(path):not(line):not(circle):not(rect):not(polygon):not(polyline):not(ellipse),
-table,
-table *:not(.lucide):not(svg):not(path):not(line):not(circle):not(rect):not(polygon):not(polyline):not(ellipse) {
-  color: #111827 !important;
-  -webkit-text-fill-color: #111827 !important;
-}
-
-/* Force text colors for all table content - highest priority */
-html body table tbody tr td,
-html body table tbody tr td *:not(.lucide):not(svg):not(path):not(line):not(circle):not(rect):not(polygon):not(polyline):not(ellipse),
-table tbody tr td,
-table tbody tr td *:not(.lucide):not(svg):not(path):not(line):not(circle):not(rect):not(polygon):not(polyline):not(ellipse) {
-  color: #111827 !important;
-  -webkit-text-fill-color: #111827 !important;
-  fill: currentColor !important;
-}
-
-/* Ensure proper inheritance for all text elements */
-html body table tbody tr td span,
-html body table tbody tr td div,
-html body table tbody tr td p,
-html body table tbody tr td a,
-html body table tbody tr td button,
-table tbody tr td span,
-table tbody tr td div,
-table tbody tr td p,
-table tbody tr td a,
-table tbody tr td button,
-table tbody tr td [role="cell"],
-table tbody tr td [role="gridcell"],
-table tbody tr td input,
-table tbody tr td textarea,
-table tbody tr td select,
-table tbody tr td label {
-  color: #111827 !important;
-  -webkit-text-fill-color: #111827 !important;
-}
-
-/* Force all descendants within tables to be visible */
-html body table *,
-table * {
-  color: #111827 !important;
-  -webkit-text-fill-color: #111827 !important;
-}
-
-/* Override every possible text element */
-html body table span,
-html body table div,
-html body table p,
-html body table td,
-html body table th,
-table span,
-table div,
-table p,
-table td,
-table th,
-table li,
-table a,
-table label,
-table button {
-  color: #111827 !important;
-  -webkit-text-fill-color: #111827 !important;
-}
-
-/* Force motion components to inherit correct color */
-html body [data-radix-collection-item],
-html body [data-state],
-html body [data-motion],
-[data-radix-collection-item],
-[data-state],
-[data-motion],
-motion,
-motion > div,
-motion > span,
-motion * {
-  color: #111827 !important;
-  -webkit-text-fill-color: #111827 !important;
-}
-
-/* Ensure badges and status indicators have good contrast */
-.badge-secondary,
-[class*="badge"],
-[data-slot="badge"],
-table [class*="Badge"],
-[class*="Badge"] {
-  background-color: #f3f4f6 !important;
-  color: #111827 !important;
-}
-
-/* Fix any motion/animated elements in table rows */
-table tbody tr,
-table tbody tr > *,
-table tbody tr [class*="motion"],
-table tbody tr [class*="Motion"] {
-  color: #111827 !important;
-}
-
-/* Override any conflicting utility classes */
-table .text-gray-500,
-table .text-gray-400,
-table .text-gray-300,
-table .text-gray-200,
-table .text-gray-100,
-table [class*="text-gray"],
-.text-gray-500,
-.text-gray-400,
-.text-gray-300,
-.text-gray-200,
-.text-gray-100,
-[class*="text-muted"] {
-  color: #111827 !important;
-}
-
-/* Ensure hover states maintain visibility */
-table tbody tr:hover td,
-table tbody tr:hover td *:not(.lucide):not(svg):not(path):not(line):not(circle):not(rect) {
-  color: #111827 !important;
-}
-
-/* Override any inline styles that might be causing issues */
-table tbody tr td[style],
-table tbody tr td [style],
-table [style*="color"] {
-  color: #111827 !important;
-}
-
-/* Force all table text regardless of nesting */
-table tbody tr td > *,
-table tbody tr td > * > *,
-table tbody tr td > * > * > *,
-table tbody tr td > * > * > * > * {
-  color: #111827 !important;
-}
-
-/* Override framer-motion animated elements */
-html body main tr[data-framer-component-type],
-html body main tr[style*="opacity"],
-html body main tr[style*="transform"],
-table tbody tr[style*="opacity"],
-table tbody tr[style*="transform"],
-table tbody tr[data-motion-id],
-table tbody tr[data-projection-id] {
-  color: #111827 !important;
-}
-
-/* Force all children of animated table rows */
-html body main tr[data-framer-component-type] td,
-html body main tr[style*="opacity"] td,
-html body main tr[style*="transform"] td,
-table tbody tr[style*="opacity"] td,
-table tbody tr[style*="transform"] td,
-table tbody tr[data-motion-id] td,
-table tbody tr[data-projection-id] td,
-html body main tr[data-framer-component-type] td *,
-html body main tr[style*="opacity"] td *,
-html body main tr[style*="transform"] td *,
-table tbody tr[style*="opacity"] td *,
-table tbody tr[style*="transform"] td *,
-table tbody tr[data-motion-id] td *,
-table tbody tr[data-projection-id] td * {
-  color: #111827 !important;
-  -webkit-text-fill-color: #111827 !important;
-}
-
-/* Target the specific motion.tr elements from framer-motion */
-body main motion-tr,
-body main motion-tr td,
-body main motion-tr td *,
-body motion-tr,
-body motion-tr td,
-body motion-tr td *,
-motion-tr,
-motion-tr td,
-motion-tr td * {
+/* Keep button backgrounds with their own colors */
+button[class*="bg-blue"],
+button[class*="bg-blue"] *,
+button[class*="bg-red"],
+button[class*="bg-red"] *,
+button[class*="bg-green"],
+button[class*="bg-green"] *,
+button[class*="bg-yellow"],
+button[class*="bg-yellow"] *,
+button[class*="bg-indigo"],
+button[class*="bg-indigo"] *,
+button[class*="bg-purple"],
+button[class*="bg-purple"] *,
+button[class*="bg-pink"],
+button[class*="bg-pink"] *,
+button[class*="bg-primary"],
+button[class*="bg-primary"] *,
+[class*="bg-"][class*="text-white"],
+[class*="bg-"][class*="text-white"] *,
+[class*="bg-primary"],
+[class*="bg-primary"] *,
+.bg-blue-100,
+.bg-blue-100 *,
+.bg-green-100,
+.bg-green-100 *,
+.bg-indigo-100,
+.bg-indigo-100 *,
+.bg-purple-100,
+.bg-purple-100 * {
   color: #111827 !important;
   -webkit-text-fill-color: #111827 !important;
 }
