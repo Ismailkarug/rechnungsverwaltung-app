@@ -40,6 +40,15 @@ function cleanLLMResponse(content: string): string {
 // Helper function to extract data from PDF using AI
 async function extractPDFData(pdfBuffer: Buffer, fileName: string): Promise<any> {
   try {
+    // Check file size before processing (max 5MB for reliable LLM processing)
+    const fileSizeMB = pdfBuffer.length / (1024 * 1024);
+    console.log(`[Platform Import] Processing ${fileName}, size: ${fileSizeMB.toFixed(2)}MB`);
+    
+    if (fileSizeMB > 5) {
+      console.error(`[Platform Import] File too large: ${fileName} (${fileSizeMB.toFixed(2)}MB)`);
+      throw new Error(`Datei zu groß (${fileSizeMB.toFixed(2)}MB). Maximale Größe: 5MB`);
+    }
+
     const { folderPrefix } = getBucketConfig();
     const timestamp = Date.now();
     const s3Key = `${folderPrefix}invoices/${timestamp}-${fileName}`;
@@ -49,6 +58,7 @@ async function extractPDFData(pdfBuffer: Buffer, fileName: string): Promise<any>
 
     // Convert to base64 for LLM API
     const base64String = pdfBuffer.toString('base64');
+    console.log(`[Platform Import] Base64 length: ${base64String.length} chars`);
 
     // Call LLM API directly to extract invoice data
     const messages = [
@@ -90,25 +100,54 @@ WICHTIG:
       }
     ];
 
-    console.log(`[Platform Import] Extracting data from: ${fileName}`);
-    const llmResponse = await fetch('https://apps.abacus.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.ABACUSAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4.1-mini',
-        messages: messages,
-        response_format: { type: "json_object" },
-        max_tokens: 1000
-      })
-    });
+    console.log(`[Platform Import] Calling LLM API for: ${fileName}`);
+    
+    // Validate API key
+    if (!process.env.ABACUSAI_API_KEY) {
+      console.error(`[Platform Import] Missing ABACUSAI_API_KEY`);
+      throw new Error('LLM API-Schlüssel fehlt');
+    }
+
+    let llmResponse;
+    try {
+      llmResponse = await fetch('https://apps.abacus.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.ABACUSAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4.1-mini',
+          messages: messages,
+          response_format: { type: "json_object" },
+          max_tokens: 1000,
+          temperature: 0.1
+        })
+      });
+    } catch (fetchError) {
+      console.error(`[Platform Import] Network error calling LLM API:`, fetchError);
+      throw new Error(`Netzwerkfehler beim LLM-Aufruf: ${fetchError instanceof Error ? fetchError.message : 'Unbekannter Fehler'}`);
+    }
 
     if (!llmResponse.ok) {
       const errorText = await llmResponse.text();
-      console.error(`[Platform Import] LLM API error:`, llmResponse.status, errorText);
-      throw new Error(`LLM API Fehler: ${llmResponse.status}`);
+      console.error(`[Platform Import] LLM API error for ${fileName}:`);
+      console.error(`  - Status: ${llmResponse.status} ${llmResponse.statusText}`);
+      console.error(`  - Response: ${errorText}`);
+      console.error(`  - File size: ${fileSizeMB.toFixed(2)}MB`);
+      console.error(`  - Base64 length: ${base64String.length} chars`);
+      
+      // Parse error details if available
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.error) {
+          throw new Error(`LLM API Fehler (${llmResponse.status}): ${errorJson.error.message || errorJson.error}`);
+        }
+      } catch (parseError) {
+        // If can't parse, use raw error
+      }
+      
+      throw new Error(`LLM API Fehler ${llmResponse.status}: Bitte Datei prüfen (Größe: ${fileSizeMB.toFixed(2)}MB)`);
     }
 
     const llmData = await llmResponse.json();
