@@ -204,11 +204,19 @@ export function parseCSV(content: string, platform: Platform): {
   const errors: ImportError[] = [];
 
   try {
+    // Auto-detect delimiter (comma or semicolon)
+    const firstLine = content.split('\n')[0];
+    const commaCount = (firstLine.match(/,/g) || []).length;
+    const semicolonCount = (firstLine.match(/;/g) || []).length;
+    const delimiter = semicolonCount > commaCount ? ';' : ',';
+
+    console.log(`[CSV Parser] Auto-detected delimiter: '${delimiter}'`);
+
     // Parse CSV with flexible options
     const records = parse(content, {
       columns: true,
       skip_empty_lines: true,
-      delimiter: ';',
+      delimiter,
       relax_column_count: true,
       trim: true,
       bom: true,
@@ -366,9 +374,172 @@ function parseAmazonCSVRow(
   fees: ImportedFee[],
   errors: ImportError[]
 ): void {
-  // Amazon CSV format (if they provide one)
-  // This is a placeholder - adjust based on actual Amazon CSV format
-  parseGenericCSVRow(row, lineNumber, invoices, fees, errors);
+  /**
+   * Amazon Transaction CSV Format:
+   * Columns: Datum, Typ, Bestellnummer, Beschreibung, Produkt-Umsätze, 
+   *          Versand-Gutschriften, Gebühren, FBA-Gebühren, Gesamt
+   * 
+   * Types:
+   * - "Bezahlung der Bestellung" = Sale
+   * - "Erstattung" = Refund
+   * - "Service-Gebühren" = Fees
+   * - "Bei Amazon gekaufte Versandetiketten" = Shipping labels
+   */
+
+  try {
+    // Extract fields (case-insensitive, support multiple column name formats)
+    const keys = Object.keys(row);
+    const datum = row['Datum'] || row['datum'] || row['Date'] || row['date'] || '';
+    const typ = row['Transaktionstyp'] || row['transaktionstyp'] || row['Typ'] || row['typ'] || row['Type'] || row['type'] || '';
+    const bestellnummer = row['Transaktionsnummer'] || row['transaktionsnummer'] || row['Bestellnummer'] || row['bestellnummer'] || row['Order ID'] || row['order-id'] || '';
+    const beschreibung = row['Produktdetails'] || row['produktdetails'] || row['Beschreibung'] || row['beschreibung'] || row['Description'] || row['description'] || '';
+    
+    // Amounts (Amazon uses dot as decimal separator in some formats, comma in others)
+    const produktUmsaetze = parseEUNumber(
+      row['Artikelpreise gesamt'] || row['artikelpreise gesamt'] || 
+      row['Produkt-Umsätze'] || row['produkt-umsätze'] || '0'
+    );
+    const versandGutschriften = parseEUNumber(
+      row['Gesamtsumme der Aktionsrabatte'] || row['gesamtsumme der aktionsrabatte'] ||
+      row['Versand-Gutschriften'] || row['versand-gutschriften'] || '0'
+    );
+    const gebuehren = parseEUNumber(
+      row['Amazon-Gebühren'] || row['amazon-gebühren'] ||
+      row['Gebühren'] || row['gebühren'] || row['Fees'] || '0'
+    );
+    const fbaGebuehren = parseEUNumber(
+      row['FBA-Gebühren'] || row['fba-gebühren'] || '0'
+    );
+    const gesamt = parseEUNumber(
+      row['Summe (EUR)'] || row['summe (eur)'] ||
+      row['Gesamt'] || row['gesamt'] || row['Total'] || '0'
+    );
+    const andere = parseEUNumber(
+      row['Andere'] || row['andere'] || row['Other'] || '0'
+    );
+
+    if (!datum || !typ) {
+      // Skip rows without essential data
+      return;
+    }
+
+    const transactionDate = parseDate(datum);
+    const orderNumber = bestellnummer || `AMAZON-${lineNumber}`;
+    const description = beschreibung || typ;
+
+    // Calculate amounts
+    const grossAmount = produktUmsaetze + versandGutschriften; // Total revenue
+    const totalFees = Math.abs(gebuehren) + Math.abs(fbaGebuehren);
+    const netAmount = grossAmount - totalFees; // Net after fees
+    
+    // Estimate VAT (19% is typical in Germany)
+    const vatAmount = grossAmount > 0 ? grossAmount - (grossAmount / 1.19) : 0;
+    const netBeforeVat = grossAmount - vatAmount;
+
+    // Process based on transaction type
+    if (typ.includes('Bezahlung') || typ.includes('Payment')) {
+      // Sale transaction
+      if (grossAmount > 0) {
+        invoices.push({
+          invoiceNumber: orderNumber,
+          orderNumber,
+          platformOrderId: orderNumber,
+          transactionDate,
+          customerName: 'Amazon Kunde',
+          netAmount: netBeforeVat,
+          vatAmount,
+          grossAmount,
+          currency: 'EUR',
+          platform: 'AMAZON',
+          type: 'AUSGANG',
+          paymentMethod: 'Amazon Payments',
+          referenceRaw: bestellnummer,
+          description,
+        });
+
+        // Add fees as separate records
+        if (totalFees > 0) {
+          fees.push({
+            invoiceNumber: orderNumber,
+            feeType: 'PLATFORM_FEE',
+            amount: totalFees,
+            currency: 'EUR',
+            description: `Amazon Gebühren (Verkauf + FBA)`,
+            transactionDate,
+            platform: 'AMAZON',
+          });
+        }
+      }
+    } else if (typ.includes('Erstattung') || typ.includes('Refund')) {
+      // Refund transaction
+      const refundGross = Math.abs(produktUmsaetze + versandGutschriften);
+      const refundVat = refundGross > 0 ? refundGross - (refundGross / 1.19) : 0;
+      const refundNet = refundGross - refundVat;
+
+      invoices.push({
+        invoiceNumber: `REFUND-${orderNumber}`,
+        orderNumber,
+        platformOrderId: orderNumber,
+        transactionDate,
+        customerName: 'Amazon Kunde',
+        netAmount: -refundNet,
+        vatAmount: -refundVat,
+        grossAmount: -refundGross,
+        currency: 'EUR',
+        platform: 'AMAZON',
+        type: 'AUSGANG',
+        paymentMethod: 'Amazon Payments',
+        referenceRaw: bestellnummer,
+        description: `Erstattung: ${description}`,
+      });
+
+      // Refund fees (if any)
+      if (totalFees > 0) {
+        fees.push({
+          invoiceNumber: `REFUND-${orderNumber}`,
+          feeType: 'PLATFORM_FEE',
+          amount: -totalFees,
+          currency: 'EUR',
+          description: `Amazon Gebühren (Erstattung)`,
+          transactionDate,
+          platform: 'AMAZON',
+        });
+      }
+    } else if (typ.includes('Service-Gebühren') || typ.includes('Service Fees')) {
+      // Service fees (subscription, etc.)
+      if (totalFees > 0 || Math.abs(gesamt) > 0) {
+        fees.push({
+          invoiceNumber: `FEE-${datum.replace(/\./g, '-')}`,
+          feeType: 'PLATFORM_FEE',
+          amount: Math.abs(totalFees || gesamt),
+          currency: 'EUR',
+          description: description || 'Amazon Service-Gebühren',
+          transactionDate,
+          platform: 'AMAZON',
+        });
+      }
+    } else if (typ.includes('Versandetiketten') || typ.includes('Shipping')) {
+      // Shipping labels
+      if (Math.abs(gesamt) > 0) {
+        fees.push({
+          invoiceNumber: `SHIPPING-${orderNumber}`,
+          feeType: 'SHIPPING_COST',
+          amount: Math.abs(gesamt),
+          currency: 'EUR',
+          description: 'Amazon Versandetikett',
+          transactionDate,
+          platform: 'AMAZON',
+        });
+      }
+    }
+  } catch (error) {
+    errors.push({
+      fileName: 'Amazon CSV',
+      lineNumber,
+      error: 'Amazon row parsing failed',
+      details: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 function parseShopifyCSVRow(
@@ -495,25 +666,172 @@ function parseAmazonPDF(
   errors: ImportError[]
 ): void {
   try {
+    /**
+     * Amazon PDF can be:
+     * 1. Zahlungsaufstellung (Payment Summary) - Monthly statement
+     * 2. Rechnung (Invoice) - Individual invoice (INV-DE-...)
+     * 3. Gutschrift (Credit Note) - Credit note (DE-CN-AEU-...)
+     */
+
+    // Check if this is a Zahlungsaufstellung (Payment Summary)
+    if (text.includes('Zahlungsaufstellung') || text.includes('Payment Summary')) {
+      parseAmazonZahlungsaufstellung(text, fileName, invoices, fees, errors);
+    } else {
+      // Individual invoice or credit note
+      parseAmazonInvoice(text, fileName, invoices, fees, errors);
+    }
+  } catch (error) {
+    errors.push({
+      fileName,
+      error: 'Amazon PDF parsing failed',
+      details: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+function parseAmazonZahlungsaufstellung(
+  text: string,
+  fileName: string,
+  invoices: ImportedInvoice[],
+  fees: ImportedFee[],
+  errors: ImportError[]
+): void {
+  /**
+   * Amazon Zahlungsaufstellung Format:
+   * - Abrechnungszeitraum: 18.10.2025 – 1.11.2025
+   * - Verkäufe: 1.135,72 €
+   * - Erstattungen: -527,24 €
+   * - Ausgaben (Amazon-Gebühren): -187,24 €
+   * - Nettoerträge: 421,24 €
+   */
+
+  try {
+    // Extract period
+    const periodMatch = text.match(/Abrechnungszeitraum[:\s]*(\d{1,2}\.\d{1,2}\.\d{4})\s*[–-]\s*(\d{1,2}\.\d{1,2}\.\d{4})/i);
+    const startDate = periodMatch ? parseDate(periodMatch[1]) : new Date();
+    const endDate = periodMatch ? parseDate(periodMatch[2]) : new Date();
+
+    // Use end date as transaction date
+    const transactionDate = endDate;
+
+    // Extract amounts (EU format: 1.135,72 €)
+    const verkaufeMatch = text.match(/Verkäufe[:\s]*([-\d.,]+)\s*€/i);
+    const erstattungenMatch = text.match(/Erstattungen[:\s]*([-\d.,]+)\s*€/i);
+    const ausgabenMatch = text.match(/Ausgaben[:\s]*([-\d.,]+)\s*€/i) ||
+                          text.match(/Amazon-Gebühren[:\s]*([-\d.,]+)\s*€/i);
+    const nettoertraegeMatch = text.match(/Nettoerträge[:\s]*([-\d.,]+)\s*€/i);
+
+    const verkaufe = verkaufeMatch ? parseEUNumber(verkaufeMatch[1]) : 0;
+    const erstattungen = erstattungenMatch ? parseEUNumber(erstattungenMatch[1]) : 0;
+    const ausgaben = ausgabenMatch ? Math.abs(parseEUNumber(ausgabenMatch[1])) : 0;
+    const nettoertrage = nettoertraegeMatch ? parseEUNumber(nettoertraegeMatch[1]) : 0;
+
+    // Create invoice for sales
+    if (verkaufe > 0) {
+      const vatAmount = verkaufe - (verkaufe / 1.19); // 19% VAT
+      const netAmount = verkaufe - vatAmount;
+
+      const invoiceNumber = `AMAZON-SALES-${startDate.toISOString().slice(0, 10)}-${endDate.toISOString().slice(0, 10)}`;
+
+      invoices.push({
+        invoiceNumber,
+        transactionDate,
+        customerName: 'Amazon Kunden (Sammelrechnung)',
+        netAmount,
+        vatAmount,
+        grossAmount: verkaufe,
+        currency: 'EUR',
+        platform: 'AMAZON',
+        type: 'AUSGANG',
+        paymentMethod: 'Amazon Payments',
+        description: `Amazon Verkäufe ${periodMatch ? periodMatch[0] : ''}`,
+      });
+    }
+
+    // Create invoice for refunds (negative)
+    if (erstattungen < 0) {
+      const refundGross = Math.abs(erstattungen);
+      const refundVat = refundGross - (refundGross / 1.19);
+      const refundNet = refundGross - refundVat;
+
+      const invoiceNumber = `AMAZON-REFUNDS-${startDate.toISOString().slice(0, 10)}-${endDate.toISOString().slice(0, 10)}`;
+
+      invoices.push({
+        invoiceNumber,
+        transactionDate,
+        customerName: 'Amazon Kunden (Erstattungen)',
+        netAmount: -refundNet,
+        vatAmount: -refundVat,
+        grossAmount: erstattungen,
+        currency: 'EUR',
+        platform: 'AMAZON',
+        type: 'AUSGANG',
+        paymentMethod: 'Amazon Payments',
+        description: `Amazon Erstattungen ${periodMatch ? periodMatch[0] : ''}`,
+      });
+    }
+
+    // Create fee record for Amazon fees
+    if (ausgaben > 0) {
+      const feeInvoiceNumber = `AMAZON-FEES-${startDate.toISOString().slice(0, 10)}-${endDate.toISOString().slice(0, 10)}`;
+
+      fees.push({
+        invoiceNumber: feeInvoiceNumber,
+        feeType: 'PLATFORM_FEE',
+        amount: ausgaben,
+        currency: 'EUR',
+        description: `Amazon Gebühren ${periodMatch ? periodMatch[0] : ''}`,
+        transactionDate,
+        platform: 'AMAZON',
+      });
+    }
+  } catch (error) {
+    errors.push({
+      fileName,
+      error: 'Amazon Zahlungsaufstellung parsing failed',
+      details: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+function parseAmazonInvoice(
+  text: string,
+  fileName: string,
+  invoices: ImportedInvoice[],
+  fees: ImportedFee[],
+  errors: ImportError[]
+): void {
+  /**
+   * Amazon Individual Invoice Format:
+   * - Rechnungsnummer: INV-DE-340820-2025-123234
+   * - Rechnungsdatum: 30/09/2025
+   * - Nettobetrag: EUR 10.61
+   * - USt: EUR 2.02
+   * - Bruttobetrag: EUR 12.63
+   */
+
+  try {
     // Extract invoice number
-    const invNumberMatch = text.match(/Rechnungsnummer:\s*(INV-[A-Z0-9-]+)/i) ||
-                          text.match(/Invoice Number:\s*(INV-[A-Z0-9-]+)/i);
+    const invNumberMatch = text.match(/Rechnungsnummer[:\s]*(INV-[A-Z0-9-]+)/i) ||
+                          text.match(/Invoice Number[:\s]*(INV-[A-Z0-9-]+)/i) ||
+                          text.match(/(DE-[A-Z]+-\d+-\d+)/i);
     const invoiceNumber = invNumberMatch ? invNumberMatch[1] : fileName.replace('.pdf', '');
 
     // Extract date
-    const dateMatch = text.match(/Rechnungsdatum:\s*(\d{2}\/\d{2}\/\d{4})/i) ||
-                     text.match(/Invoice Date:\s*(\d{2}\/\d{2}\/\d{4})/i);
+    const dateMatch = text.match(/Rechnungsdatum[:\s]*(\d{2}\/\d{2}\/\d{4})/i) ||
+                     text.match(/Invoice Date[:\s]*(\d{2}\/\d{2}\/\d{4})/i) ||
+                     text.match(/(\d{2}\.\d{2}\.\d{4})/i);
     const transactionDate = dateMatch ? parseDate(dateMatch[1]) : new Date();
 
     // Extract customer/supplier name
-    const customerMatch = text.match(/Leistungsempfänger:\s*([^\n]+)/i) ||
-                         text.match(/Recipient:\s*([^\n]+)/i);
-    const customerName = customerMatch ? customerMatch[1].trim() : '';
+    const customerMatch = text.match(/Leistungsempfänger[:\s]*([^\n]+)/i) ||
+                         text.match(/Recipient[:\s]*([^\n]+)/i);
+    const customerName = customerMatch ? customerMatch[1].trim() : 'Amazon EU S.à r.l.';
 
     // Extract totals
-    const nettoMatch = text.match(/Nettobetrag:\s*EUR\s*([\d.,]+)/i);
-    const ustMatch = text.match(/USt:\s*EUR\s*([\d.,]+)/i);
-    const bruttoMatch = text.match(/Bruttobetrag:\s*EUR\s*([\d.,]+)/i);
+    const nettoMatch = text.match(/Nettobetrag[:\s]*EUR\s*([\d.,]+)/i);
+    const ustMatch = text.match(/USt[:\s]*EUR\s*([\d.,]+)/i);
+    const bruttoMatch = text.match(/Bruttobetrag[:\s]*EUR\s*([\d.,]+)/i);
 
     const netAmount = nettoMatch ? parseEUNumber(nettoMatch[1]) : 0;
     const vatAmount = ustMatch ? parseEUNumber(ustMatch[1]) : 0;
@@ -522,7 +840,8 @@ function parseAmazonPDF(
     // Determine if this is a credit note
     const isCreditNote = text.toLowerCase().includes('gutschrift') || 
                         text.toLowerCase().includes('credit note') ||
-                        fileName.toLowerCase().includes('cn-');
+                        fileName.toLowerCase().includes('cn-') ||
+                        invoiceNumber.includes('CN');
 
     // Amazon invoices are typically expenses (EINGANG)
     const type: 'EINGANG' | 'AUSGANG' = 'EINGANG';
@@ -561,7 +880,7 @@ function parseAmazonPDF(
   } catch (error) {
     errors.push({
       fileName,
-      error: 'Amazon PDF parsing failed',
+      error: 'Amazon invoice parsing failed',
       details: error instanceof Error ? error.message : String(error),
     });
   }
