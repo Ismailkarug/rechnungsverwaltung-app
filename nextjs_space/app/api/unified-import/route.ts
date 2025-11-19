@@ -290,7 +290,10 @@ async function extractWithAI(
 IMPORTANT:
 - Use dot (.) as decimal separator
 - Remove all thousand separators
-- Return only the JSON object`,
+- Return ONLY the raw JSON object
+- Do NOT wrap in markdown code blocks
+- Do NOT add any explanation or text
+- Just the JSON object starting with { and ending with }`,
           },
         ],
       },
@@ -316,9 +319,31 @@ IMPORTANT:
     }
 
     const llmData = await llmResponse.json();
-    const extractedData = JSON.parse(llmData.choices[0].message.content);
-
-    console.log(`[AI Extract] Extracted:`, extractedData);
+    
+    // Clean LLM response (remove markdown code blocks)
+    let rawContent = llmData.choices[0].message.content;
+    console.log(`[AI Extract] Raw LLM response:`, rawContent);
+    
+    // Remove markdown code blocks
+    rawContent = rawContent.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+    
+    // Extract JSON object if wrapped in text
+    const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      rawContent = jsonMatch[0];
+    }
+    
+    rawContent = rawContent.trim();
+    
+    let extractedData;
+    try {
+      extractedData = JSON.parse(rawContent);
+      console.log(`[AI Extract] Extracted:`, extractedData);
+    } catch (parseError) {
+      console.error(`[AI Extract] JSON parsing failed:`, parseError);
+      console.error(`[AI Extract] Cleaned content:`, rawContent);
+      return null;
+    }
 
     return {
       invoiceNumber: extractedData.invoiceNumber || fileName.replace('.pdf', ''),
@@ -412,12 +437,10 @@ async function saveToDatabase(result: ImportResult, userId: string): Promise<voi
         await prisma.platformFee.create({
           data: {
             rechnungId: relatedInvoice.id,
-            feeType: fee.feeType,
-            amount: fee.amount,
-            currency: fee.currency,
-            description: fee.description,
-            transactionDate: fee.transactionDate,
-            platform: fee.platform,
+            plattform: fee.platform,
+            typ: fee.feeType,
+            beschreibung: fee.description,
+            betrag: fee.amount,
           },
         });
 
