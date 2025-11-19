@@ -74,3 +74,48 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* CRITICAL: Force dark text globally - Must be OUTSIDE @layer to override Tailwind */
+/* Force dark text on ALL table elements and their children */
+table *,
+table td *,
+table th *,
+table tbody *,
+table tr *,
+tbody *,
+tr *,
+td *,
+th *,
+td,
+th,
+table td.px-6,
+table th.px-6,
+.px-6.py-4 *,
+.px-6.py-3 * {
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+}
+
+/* Override all Tailwind text color classes */
+[class*="text-gray-"],
+[class*="text-muted"],
+.text-gray-900,
+.text-gray-800,
+.text-gray-700,
+.text-gray-600,
+.text-gray-500,
+.text-gray-400,
+.text-gray-300,
+.text-gray-200,
+.text-gray-100,
+.text-muted-foreground,
+table [class*="text-gray-"],
+table .text-gray-900,
+table .text-gray-800,
+table .text-gray-700,
+table .text-gray-600,
+table .text-gray-500,
+table .text-gray-400 {
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+}

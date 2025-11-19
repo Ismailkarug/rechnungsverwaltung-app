@@ -1,5 +1,6 @@
 
 /* CRITICAL: ABSOLUTE MAXIMUM PRIORITY - FORCE ALL TEXT TO BE DARK */
+/* Force dark text on ALL elements */
 html,
 html *,
 body,
@@ -10,6 +11,8 @@ body *,
 [class],
 table,
 table *,
+tbody,
+tbody *,
 tr,
 tr *,
 td,
@@ -26,6 +29,20 @@ a,
 a *,
 button:not([class*="bg-blue"]):not([class*="bg-red"]):not([class*="bg-green"]):not([class*="bg-yellow"]):not([class*="bg-indigo"]),
 button:not([class*="bg-blue"]):not([class*="bg-red"]):not([class*="bg-green"]):not([class*="bg-yellow"]):not([class*="bg-indigo"]) * {
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+  fill: #111827 !important;
+}
+
+/* Extra specificity for table cells */
+table td,
+table th,
+table tbody td,
+table tbody th,
+tbody td,
+tbody th,
+tr td,
+tr th {
   color: #111827 !important;
   -webkit-text-fill-color: #111827 !important;
 }
