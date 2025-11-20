@@ -109,6 +109,10 @@ async function getLetzteRechnungen() {
     betragNetto: Number(r.betragNetto),
     betragBrutto: Number(r.betragBrutto),
     mwstBetrag: Number(r.mwstBetrag),
+    plattformgebuehr: r.plattformgebuehr ? Number(r.plattformgebuehr) : null,
+    zahlungsgebuehr: r.zahlungsgebuehr ? Number(r.zahlungsgebuehr) : null,
+    werbekosten: r.werbekosten ? Number(r.werbekosten) : null,
+    versandkosten: r.versandkosten ? Number(r.versandkosten) : null,
     datum: r.datum.toISOString(),
     verarbeitungsdatum: r.verarbeitungsdatum?.toISOString() || null,
     typ: r.typ || 'Eingang'

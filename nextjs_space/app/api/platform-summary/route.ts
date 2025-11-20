@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Platform } from '@prisma/client';
 import { getPlatformSummary } from '@/src/services/reports_platformSummary';
 
+export const dynamic = 'force-dynamic';
+
 function getDefaultRange() {
   const to = new Date();
   const from = new Date();

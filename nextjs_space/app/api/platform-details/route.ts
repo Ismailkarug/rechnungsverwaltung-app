@@ -4,6 +4,8 @@ import { Platform } from '@prisma/client';
 import { getPlatformSummary } from '@/src/services/reports_platformSummary';
 import { getPlatformDetails } from '@/src/services/reports_platformDetails';
 
+export const dynamic = 'force-dynamic';
+
 function getDefaultRange() {
   const to = new Date();
   const from = new Date();
