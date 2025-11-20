@@ -94,14 +94,37 @@ export function detectPlatform(
   const lowerContent = content.toLowerCase();
   const lowerFileName = fileName.toLowerCase();
 
-  // Amazon detection
+  // Amazon detection - ENHANCED ✨
   if (
+    // Company names
     lowerContent.includes('amazon eu s.à r.l') ||
     lowerContent.includes('amazon.de') ||
     lowerContent.includes('amazon services') ||
+    lowerContent.includes('amazon europe') ||
+    lowerContent.includes('amazon media eu') ||
+    lowerContent.includes('amazon seller central') ||
+    // Document types
+    lowerContent.includes('zahlungsaufstellung') ||
+    lowerContent.includes('payment summary') ||
+    lowerContent.includes('settlement report') ||
+    lowerContent.includes('transaction report') ||
+    // CSV headers (specific Amazon columns)
+    lowerContent.includes('artikelpreise gesamt') ||
+    lowerContent.includes('amazon-gebühren') ||
+    lowerContent.includes('fba-gebühren') ||
+    lowerContent.includes('transaktionstyp') ||
+    lowerContent.includes('transaktionsnummer') ||
+    // File names
     lowerFileName.includes('amazon') ||
     lowerFileName.includes('inv-de-') ||
-    lowerFileName.includes('aeu-')
+    lowerFileName.includes('de-aeu-') ||
+    lowerFileName.includes('de-cn-aeu-') ||
+    lowerFileName.includes('settlement') ||
+    lowerFileName.includes('transaction') ||
+    // Invoice patterns
+    /inv-de-\d+/.test(lowerFileName) ||
+    /de-aeu-\d+/.test(lowerFileName) ||
+    /de-cn-aeu-\d+/.test(lowerFileName)
   ) {
     return 'AMAZON';
   }
@@ -166,27 +189,57 @@ export function parseEUNumber(value: string | number | undefined | null): number
 export function parseDate(dateStr: string | undefined | null): Date {
   if (!dateStr) return new Date();
 
-  // Try ISO format first
-  if (dateStr.includes('-') && dateStr.length >= 10) {
-    const parsed = new Date(dateStr);
+  // Clean the string
+  const cleaned = dateStr.trim();
+
+  // Try ISO format first (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)
+  if (cleaned.includes('-') && cleaned.length >= 10) {
+    const parsed = new Date(cleaned);
     if (!isNaN(parsed.getTime())) return parsed;
   }
 
-  // Try DD.MM.YYYY format (common in EU)
-  const ddmmyyyyMatch = dateStr.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+  // ENHANCED: Try DD.MM.YYYY format (common in EU) ✨
+  const ddmmyyyyMatch = cleaned.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
   if (ddmmyyyyMatch) {
     const [, day, month, year] = ddmmyyyyMatch;
     return new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
   }
 
-  // Try DD/MM/YYYY format
-  const ddmmyyyySlashMatch = dateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  // ENHANCED: Try DD/MM/YYYY format (Amazon often uses this) ✨
+  const ddmmyyyySlashMatch = cleaned.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if (ddmmyyyySlashMatch) {
     const [, day, month, year] = ddmmyyyySlashMatch;
     return new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
   }
 
+  // ENHANCED: Try MM/DD/YYYY format (US format, sometimes used) ✨
+  const mmddyyyySlashMatch = cleaned.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (mmddyyyySlashMatch) {
+    const [, first, second, year] = mmddyyyySlashMatch;
+    const fullYear = year.length === 2 ? `20${year}` : year;
+    // Assume DD/MM if day > 12, otherwise try MM/DD
+    if (parseInt(first) > 12) {
+      return new Date(`${fullYear}-${second.padStart(2, '0')}-${first.padStart(2, '0')}`);
+    }
+    return new Date(`${fullYear}-${first.padStart(2, '0')}-${second.padStart(2, '0')}`);
+  }
+
+  // ENHANCED: Try DD-MM-YYYY format ✨
+  const ddmmyyyyDashMatch = cleaned.match(/(\d{1,2})-(\d{1,2})-(\d{4})/);
+  if (ddmmyyyyDashMatch) {
+    const [, day, month, year] = ddmmyyyyDashMatch;
+    return new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+  }
+
+  // ENHANCED: Try YYYYMMDD format (compact format) ✨
+  const yyyymmddMatch = cleaned.match(/^(\d{4})(\d{2})(\d{2})$/);
+  if (yyyymmddMatch) {
+    const [, year, month, day] = yyyymmddMatch;
+    return new Date(`${year}-${month}-${day}`);
+  }
+
   // Fallback to current date
+  console.warn(`[parseDate] Could not parse date: "${dateStr}", using current date`);
   return new Date();
 }
 
@@ -375,47 +428,100 @@ function parseAmazonCSVRow(
   errors: ImportError[]
 ): void {
   /**
-   * Amazon Transaction CSV Format:
-   * Columns: Datum, Typ, Bestellnummer, Beschreibung, Produkt-Umsätze, 
-   *          Versand-Gutschriften, Gebühren, FBA-Gebühren, Gesamt
+   * ENHANCED Amazon Transaction CSV Format Support ✨
    * 
-   * Types:
-   * - "Bezahlung der Bestellung" = Sale
-   * - "Erstattung" = Refund
-   * - "Service-Gebühren" = Fees
-   * - "Bei Amazon gekaufte Versandetiketten" = Shipping labels
+   * Supported Columns (German/English):
+   * - Datum/Date
+   * - Transaktionstyp/Typ/Type
+   * - Transaktionsnummer/Bestellnummer/Order ID
+   * - Produktdetails/Beschreibung/Description
+   * - Artikelpreise gesamt/Produkt-Umsätze/Product Sales
+   * - Gesamtsumme der Aktionsrabatte/Versand-Gutschriften/Shipping Credits
+   * - Amazon-Gebühren/Gebühren/Fees
+   * - FBA-Gebühren/FBA Fees
+   * - Summe (EUR)/Gesamt/Total
+   * - Werbekosten/Advertising Costs
+   * - Lagergebühren/Storage Fees
+   * 
+   * Transaction Types:
+   * - Bezahlung der Bestellung/Payment = Sale
+   * - Erstattung/Refund = Refund
+   * - Service-Gebühren/Service Fees = Platform fees
+   * - Bei Amazon gekaufte Versandetiketten/Shipping labels
+   * - Werbekampagne/Advertising Campaign
+   * - Lagergebühren/Storage Fees
+   * - FBA-Lagergebühren/FBA Storage Fees
    */
 
   try {
-    // Extract fields (case-insensitive, support multiple column name formats)
-    const keys = Object.keys(row);
-    const datum = row['Datum'] || row['datum'] || row['Date'] || row['date'] || '';
-    const typ = row['Transaktionstyp'] || row['transaktionstyp'] || row['Typ'] || row['typ'] || row['Type'] || row['type'] || '';
-    const bestellnummer = row['Transaktionsnummer'] || row['transaktionsnummer'] || row['Bestellnummer'] || row['bestellnummer'] || row['Order ID'] || row['order-id'] || '';
-    const beschreibung = row['Produktdetails'] || row['produktdetails'] || row['Beschreibung'] || row['beschreibung'] || row['Description'] || row['description'] || '';
+    // Extract fields - ENHANCED with more variations ✨
+    const datum = row['Datum'] || row['datum'] || row['Date'] || row['date'] || 
+                  row['Transaktionsdatum'] || row['transaktionsdatum'] || '';
     
-    // Amounts (Amazon uses dot as decimal separator in some formats, comma in others)
+    const typ = row['Transaktionstyp'] || row['transaktionstyp'] || 
+                row['Typ'] || row['typ'] || row['Type'] || row['type'] || 
+                row['Transaction Type'] || row['transaction type'] || '';
+    
+    const bestellnummer = row['Transaktionsnummer'] || row['transaktionsnummer'] || 
+                         row['Bestellnummer'] || row['bestellnummer'] || 
+                         row['Order ID'] || row['order-id'] || row['order id'] ||
+                         row['Settlement ID'] || row['settlement id'] || '';
+    
+    const beschreibung = row['Produktdetails'] || row['produktdetails'] || 
+                        row['Beschreibung'] || row['beschreibung'] || 
+                        row['Description'] || row['description'] ||
+                        row['Produktname'] || row['produktname'] || '';
+    
+    // Amounts - ENHANCED with more column variations ✨
     const produktUmsaetze = parseEUNumber(
       row['Artikelpreise gesamt'] || row['artikelpreise gesamt'] || 
-      row['Produkt-Umsätze'] || row['produkt-umsätze'] || '0'
+      row['Produkt-Umsätze'] || row['produkt-umsätze'] ||
+      row['Product Sales'] || row['product sales'] ||
+      row['Principal'] || row['principal'] || '0'
     );
+    
     const versandGutschriften = parseEUNumber(
       row['Gesamtsumme der Aktionsrabatte'] || row['gesamtsumme der aktionsrabatte'] ||
-      row['Versand-Gutschriften'] || row['versand-gutschriften'] || '0'
+      row['Versand-Gutschriften'] || row['versand-gutschriften'] ||
+      row['Shipping Credits'] || row['shipping credits'] ||
+      row['Promotional Rebates'] || row['promotional rebates'] || '0'
     );
+    
     const gebuehren = parseEUNumber(
       row['Amazon-Gebühren'] || row['amazon-gebühren'] ||
-      row['Gebühren'] || row['gebühren'] || row['Fees'] || '0'
+      row['Gebühren'] || row['gebühren'] || 
+      row['Fees'] || row['fees'] ||
+      row['Commission'] || row['commission'] || '0'
     );
+    
     const fbaGebuehren = parseEUNumber(
-      row['FBA-Gebühren'] || row['fba-gebühren'] || '0'
+      row['FBA-Gebühren'] || row['fba-gebühren'] ||
+      row['FBA Fees'] || row['fba fees'] ||
+      row['Fulfillment Fees'] || row['fulfillment fees'] || '0'
     );
+    
     const gesamt = parseEUNumber(
       row['Summe (EUR)'] || row['summe (eur)'] ||
-      row['Gesamt'] || row['gesamt'] || row['Total'] || '0'
+      row['Gesamt'] || row['gesamt'] || 
+      row['Total'] || row['total'] ||
+      row['Net Proceeds'] || row['net proceeds'] || '0'
     );
+    
+    const werbekosten = parseEUNumber(
+      row['Werbekosten'] || row['werbekosten'] ||
+      row['Advertising Costs'] || row['advertising costs'] ||
+      row['Sponsored Products'] || row['sponsored products'] || '0'
+    );
+    
+    const lagergebuehren = parseEUNumber(
+      row['Lagergebühren'] || row['lagergebühren'] ||
+      row['Storage Fees'] || row['storage fees'] ||
+      row['FBA Storage Fees'] || row['fba storage fees'] || '0'
+    );
+    
     const andere = parseEUNumber(
-      row['Andere'] || row['andere'] || row['Other'] || '0'
+      row['Andere'] || row['andere'] || 
+      row['Other'] || row['other'] || '0'
     );
 
     if (!datum || !typ) {
@@ -531,6 +637,58 @@ function parseAmazonCSVRow(
           platform: 'AMAZON',
         });
       }
+    } else if (typ.includes('Werbekampagne') || typ.includes('Advertising') || typ.includes('Sponsored')) {
+      // ENHANCED: Advertising costs ✨
+      if (Math.abs(werbekosten) > 0 || Math.abs(gesamt) > 0) {
+        fees.push({
+          invoiceNumber: `AD-${orderNumber || datum.replace(/\./g, '-')}`,
+          feeType: 'OTHER',
+          amount: Math.abs(werbekosten || gesamt),
+          currency: 'EUR',
+          description: `Amazon Werbekosten: ${description || 'Sponsored Products'}`,
+          transactionDate,
+          platform: 'AMAZON',
+        });
+      }
+    } else if (typ.includes('Lagergebühren') || typ.includes('Storage Fees') || typ.includes('FBA Storage')) {
+      // ENHANCED: Storage fees ✨
+      if (Math.abs(lagergebuehren) > 0 || Math.abs(gesamt) > 0) {
+        fees.push({
+          invoiceNumber: `STORAGE-${datum.replace(/\./g, '-')}`,
+          feeType: 'OTHER',
+          amount: Math.abs(lagergebuehren || gesamt),
+          currency: 'EUR',
+          description: `Amazon Lagergebühren: ${description || 'FBA Storage'}`,
+          transactionDate,
+          platform: 'AMAZON',
+        });
+      }
+    }
+
+    // ENHANCED: Process advertising costs if present ✨
+    if (werbekosten > 0 && !typ.includes('Werbekampagne') && !typ.includes('Advertising')) {
+      fees.push({
+        invoiceNumber: orderNumber,
+        feeType: 'OTHER',
+        amount: werbekosten,
+        currency: 'EUR',
+        description: 'Amazon Werbekosten (Sponsored Products)',
+        transactionDate,
+        platform: 'AMAZON',
+      });
+    }
+
+    // ENHANCED: Process storage fees if present ✨
+    if (lagergebuehren > 0 && !typ.includes('Lagergebühren') && !typ.includes('Storage')) {
+      fees.push({
+        invoiceNumber: orderNumber,
+        feeType: 'OTHER',
+        amount: lagergebuehren,
+        currency: 'EUR',
+        description: 'Amazon Lagergebühren',
+        transactionDate,
+        platform: 'AMAZON',
+      });
     }
   } catch (error) {
     errors.push({
@@ -996,7 +1154,11 @@ export function calculateSummary(
   let totalFees = 0;
 
   invoices.forEach(inv => {
-    platformCounts[inv.platform]++;
+    // Map NONE to OTHER for counting
+    const platform = inv.platform === 'NONE' ? 'OTHER' : inv.platform;
+    if (platform in platformCounts) {
+      platformCounts[platform as keyof typeof platformCounts]++;
+    }
     netAmount += inv.netAmount;
     vatAmount += inv.vatAmount;
     grossAmount += inv.grossAmount;

@@ -29,10 +29,11 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await requireAuth(req);
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const authResult = await requireAuth();
+    if (authResult.error) {
+      return authResult.error;
     }
+    const userId = authResult.session?.user?.email || 'anonymous';
 
     const formData = await req.formData();
     const files = formData.getAll('files') as File[];
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest) {
     result.summary = calculateSummary(result.invoices, result.fees);
 
     // Save to database
-    await saveToDatabase(result, user.id);
+    await saveToDatabase(result, userId);
 
     console.log(`[Unified Import] Completed. Summary:`, result.summary);
 
@@ -399,11 +400,10 @@ async function saveToDatabase(result: ImportResult, userId: string): Promise<voi
             betragBrutto: invoice.grossAmount,
             typ: invoice.type,
             plattform: invoice.platform,
-            platformOrderId: invoice.platformOrderId,
-            paymentMethod: invoice.paymentMethod,
-            referenceRaw: invoice.referenceRaw,
-            beschreibung: invoice.description,
-            userId,
+            bestellnummer: invoice.platformOrderId || invoice.orderNumber,
+            zahlungsmethode: invoice.paymentMethod,
+            referenz: invoice.referenceRaw,
+            leistungszeitraum: invoice.description,
           },
         });
 

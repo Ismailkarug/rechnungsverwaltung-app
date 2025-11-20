@@ -32,14 +32,14 @@ export async function POST(request: NextRequest) {
     const fileContent = await file.text();
 
     // Parse CSV
-    let records;
+    let records: any[];
     try {
       records = parse(fileContent, {
         columns: true,
         skip_empty_lines: true,
         delimiter: ',',
         trim: true
-      });
+      }) as any[];
     } catch (error) {
       return NextResponse.json(
         { error: 'Fehler beim Parsen der CSV-Datei. Bitte überprüfen Sie das Format.' },
@@ -47,8 +47,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const savedInvoices = [];
-    const errors = [];
+    const savedInvoices: any[] = [];
+    const errors: any[] = [];
 
     for (const record of records) {
       try {
